@@ -1,7 +1,10 @@
 from datetime import datetime, timedelta
 import random
 import hashlib
+import hmac
+import os
 import re
+import secrets
 
 
 VENDORS = ["Orange", "SNCF", "Amazon Business", "EDF", "Ikea", "OVH", "Carrefour"]
@@ -34,8 +37,43 @@ def random_doc_data(filename: str):
     }
 
 
-def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+def _pepper() -> str:
+    return os.getenv("PASSWORD_PEPPER", "")
+
+
+def generate_salt() -> str:
+    return secrets.token_hex(16)
+
+
+def hash_password(password: str, salt: str | None = None) -> str:
+    """
+    PBKDF2 hash with per-user salt + optional pepper (env).
+    Stored format: pbkdf2$ITER$salt$hash
+    """
+    if salt is None:
+        salt = generate_salt()
+    iterations = int(os.getenv("PASSWORD_ITERATIONS", "120000"))
+    peppered = (password + _pepper()).encode("utf-8")
+    dk = hashlib.pbkdf2_hmac("sha256", peppered, salt.encode("utf-8"), iterations)
+    return f"pbkdf2${iterations}${salt}${dk.hex()}"
+
+
+def verify_password(password: str, stored_hash: str, salt: str | None = None) -> bool:
+    """
+    Support legacy sha256 and new pbkdf2 format.
+    """
+    if stored_hash.startswith("pbkdf2$"):
+        try:
+            _, iters, stored_salt, stored = stored_hash.split("$", 3)
+            iterations = int(iters)
+            peppered = (password + _pepper()).encode("utf-8")
+            dk = hashlib.pbkdf2_hmac("sha256", peppered, stored_salt.encode("utf-8"), iterations)
+            return hmac.compare_digest(stored, dk.hex())
+        except Exception:
+            return False
+    # legacy fallback (sha256)
+    legacy = hashlib.sha256(password.encode("utf-8")).hexdigest()
+    return hmac.compare_digest(legacy, stored_hash)
 
 
 def parse_fields_from_text(text: str):

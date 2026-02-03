@@ -170,6 +170,8 @@ def init_db():
         cur.execute("ALTER TABLE users ADD COLUMN tenant_id INTEGER DEFAULT 1")
     if not _column_exists(cur, "users", "role"):
         cur.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'admin'")
+    if not _column_exists(cur, "users", "password_salt"):
+        cur.execute("ALTER TABLE users ADD COLUMN password_salt TEXT")
     if not _column_exists(cur, "sessions", "expires_at"):
         cur.execute("ALTER TABLE sessions ADD COLUMN expires_at TEXT DEFAULT ''")
     conn.commit()

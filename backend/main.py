@@ -41,7 +41,7 @@ from .models import (
     EmailOut,
 )
 from .ai_handler import extract_document
-from .utils import hash_password, to_accounting_entries, best_matches
+from .utils import hash_password, generate_salt, verify_password, to_accounting_entries, best_matches
 
 
 app = FastAPI(title="ComptaFlow API", version="0.1.0")
@@ -92,12 +92,13 @@ def startup():
         tenant_id = cur.lastrowid
     else:
         tenant_id = tenant["id"]
-    cur.execute("SELECT id FROM users WHERE email = ?", ("admin@comptaflow.fr",))
+    cur.execute("SELECT id, password_hash, password_salt FROM users WHERE email = ?", ("admin@comptaflow.fr",))
     row = cur.fetchone()
     if not row:
+        salt = generate_salt()
         cur.execute(
-            "INSERT INTO users (email, tenant_id, role, password_hash, created_at) VALUES (?, ?, ?, ?, ?)",
-            ("admin@comptaflow.fr", tenant_id, "admin", hash_password("demo1234"), datetime.utcnow().isoformat()),
+            "INSERT INTO users (email, tenant_id, role, password_hash, password_salt, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            ("admin@comptaflow.fr", tenant_id, "admin", hash_password("demo1234", salt), salt, datetime.utcnow().isoformat()),
         )
         conn.commit()
     conn.close()
@@ -169,11 +170,15 @@ def upload_document(file: UploadFile = File(...), x_auth_token: str | None = Hea
     user = require_user(x_auth_token)
     require_role(user, {"admin", "accountant", "client"})
     safe_name = file.filename.replace("/", "_").replace("\\", "_")
+    max_mb = int(os.getenv("MAX_UPLOAD_MB", "10"))
+    content = file.file.read()
+    if len(content) > max_mb * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File too large")
     stamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
     stored_name = f"{stamp}_{safe_name}"
     target: Path = UPLOADS_DIR / stored_name
     with target.open("wb") as f:
-        f.write(file.file.read())
+        f.write(content)
 
     data = extract_document(file.filename, str(target))
     conn = get_connection()
@@ -1038,7 +1043,7 @@ def login(payload: LoginIn, request: Request):
         _login_attempts[key].append(now)
         conn.close()
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    if row["password_hash"] != hash_password(payload.password):
+    if not verify_password(payload.password, row["password_hash"], row.get("password_salt")):
         _login_attempts[key].append(now)
         conn.close()
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -1100,9 +1105,10 @@ def create_user(payload: UserCreate, x_auth_token: str | None = Header(default=N
         raise HTTPException(status_code=400, detail="Invalid role")
     conn = get_connection()
     cur = conn.cursor()
+    salt = generate_salt()
     cur.execute(
-        "INSERT INTO users (email, tenant_id, role, password_hash, created_at) VALUES (?, ?, ?, ?, ?)",
-        (payload.email, user["tenant_id"], role, hash_password(payload.password), datetime.utcnow().isoformat()),
+        "INSERT INTO users (email, tenant_id, role, password_hash, password_salt, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (payload.email, user["tenant_id"], role, hash_password(payload.password, salt), salt, datetime.utcnow().isoformat()),
     )
     conn.commit()
     new_id = cur.lastrowid
