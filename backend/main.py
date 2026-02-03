@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Header, HTTPException, Request
+from fastapi import FastAPI, UploadFile, File, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from datetime import datetime, timedelta
@@ -68,12 +68,24 @@ _LOGIN_MAX_ATTEMPTS = 8
 
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
+    request_id = uuid.uuid4().hex
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["Permissions-Policy"] = "geolocation=()"
+    response.headers["X-Request-ID"] = request_id
     return response
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "comptaflow-api"}
+
+
+@app.get("/version")
+def version():
+    return {"version": app.version}
 
 
 @app.on_event("startup")
