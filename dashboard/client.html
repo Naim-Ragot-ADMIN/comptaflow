@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Espace client - ComptaFlow</title>
+    <style>
+      :root {
+        --ink: #0b0f14;
+        --muted: #6b7280;
+        --brand: #0f766e;
+        --bg: #f7f5f0;
+        --paper: #ffffff;
+        --line: #e5e7eb;
+        --shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Space Grotesk", "Segoe UI", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top right, #fff3c9 0, transparent 50%),
+          radial-gradient(circle at 20% 20%, #d2f2ed 0, transparent 40%),
+          var(--bg);
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 24px 48px;
+      }
+      .logo {
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .logo-badge {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--brand), #0e7490);
+        color: white;
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+      }
+      nav a {
+        color: var(--ink);
+        text-decoration: none;
+        margin-left: 20px;
+        font-weight: 600;
+      }
+      .section {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 24px 48px 12px;
+      }
+      .workspace {
+        background: var(--paper);
+        border-radius: 22px;
+        padding: 22px;
+        box-shadow: var(--shadow);
+      }
+      .workspace-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .upload-box {
+        border: 2px dashed #cbd5f5;
+        border-radius: 18px;
+        padding: 18px;
+        display: grid;
+        gap: 10px;
+        background: #f8fafc;
+      }
+      .btn {
+        border: none;
+        padding: 12px 20px;
+        border-radius: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      .btn-primary {
+        background: var(--brand);
+        color: white;
+        box-shadow: var(--shadow);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th, td {
+        text-align: left;
+        padding: 10px;
+        border-bottom: 1px solid var(--line);
+      }
+      .status {
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 12px;
+        display: inline-block;
+      }
+      .status.ok { background: #dcfce7; color: #166534; }
+      .status.wait { background: #fef3c7; color: #92400e; }
+      @media (max-width: 900px) {
+        header { padding: 20px 24px; }
+        .section { padding: 18px 24px 8px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="logo">
+        <div class="logo-badge">CF</div>
+        ComptaFlow
+      </div>
+      <nav>
+        <a href="#" id="logoutLink">Déconnexion</a>
+      </nav>
+    </header>
+
+    <section class="section">
+      <div class="workspace">
+        <div class="workspace-header">
+          <div>
+            <h2 style="margin:0 0 6px;">Espace client</h2>
+            <div style="color:var(--muted);">Déposez vos pièces, suivez l'état.</div>
+          </div>
+        </div>
+        <div class="upload-box">
+          <label for="upload">Importer des factures (PDF, JPG, PNG)</label>
+          <input type="file" id="upload" multiple />
+          <small style="color:var(--muted);">
+            Vos documents sont partagés avec votre cabinet.
+          </small>
+        </div>
+        <div style="overflow:auto; margin-top: 18px;">
+          <table id="docTable">
+            <thead>
+              <tr>
+                <th>Pièce</th>
+                <th>Fournisseur</th>
+                <th>Date</th>
+                <th>Montant TTC</th>
+                <th>TVA</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="workspace">
+        <div class="workspace-header">
+          <div>
+            <h2 style="margin:0 0 6px;">Notifications</h2>
+            <div style="color:var(--muted);">Messages du cabinet.</div>
+          </div>
+        </div>
+        <div id="notifList"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="workspace">
+        <div class="workspace-header">
+          <div>
+            <h2 style="margin:0 0 6px;">Aide & FAQ</h2>
+            <div style="color:var(--muted);">Guides et réponses rapides.</div>
+          </div>
+        </div>
+        <div id="kbList"></div>
+      </div>
+    </section>
+
+    <script src="config.js"></script>
+    <script>
+      const API_BASE = window.CF_API_BASE || "http://localhost:8000";
+      const token = localStorage.getItem("cf_token");
+      const tbody = document.querySelector("#docTable tbody");
+      const kbList = document.getElementById("kbList");
+      const notifList = document.getElementById("notifList");
+      const fmt = (n) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+
+      function render(items) {
+        tbody.innerHTML = "";
+        items.forEach((doc) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${doc.filename}</td>
+            <td>${doc.vendor}</td>
+            <td>${doc.doc_date}</td>
+            <td>${fmt(doc.amount_ttc)}</td>
+            <td>${fmt(doc.vat)}</td>
+            <td><span class="status ${doc.status === "OK" ? "ok" : "wait"}">${doc.status}</span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      async function loadFromApi() {
+        try {
+          const res = await fetch(`${API_BASE}/documents`, {
+            headers: { "X-Auth-Token": token || "" },
+          });
+          const data = await res.json();
+          render(data.items || []);
+
+          const kb = await fetch(`${API_BASE}/kb`, {
+            headers: { "X-Auth-Token": token || "" },
+          }).then((r) => r.json());
+          kbList.innerHTML = "";
+          kb.forEach((k) => {
+            const item = document.createElement("div");
+            item.style.padding = "12px";
+            item.style.marginBottom = "10px";
+            item.style.border = "1px solid #e5e7eb";
+            item.style.borderRadius = "12px";
+            item.innerHTML = `<strong>${k.title}</strong><div style="color:#6b7280; margin-top:6px;">${k.content}</div>`;
+            kbList.appendChild(item);
+          });
+
+          const notifs = await fetch(`${API_BASE}/notifications`, {
+            headers: { "X-Auth-Token": token || "" },
+          }).then((r) => r.json());
+          notifList.innerHTML = "";
+          notifs.forEach((n) => {
+            const item = document.createElement("div");
+            item.style.padding = "10px";
+            item.style.marginBottom = "8px";
+            item.style.borderRadius = "10px";
+            item.style.border = "1px solid #e5e7eb";
+            item.style.background = n.level === "warning" ? "#fef3c7" : n.level === "success" ? "#dcfce7" : "#eff6ff";
+            item.innerHTML = `<strong>${n.level.toUpperCase()}</strong> — ${n.message}`;
+            notifList.appendChild(item);
+          });
+        } catch (err) {
+          render([]);
+        }
+      }
+
+      document.getElementById("upload").addEventListener("change", async (e) => {
+        const files = [...e.target.files];
+        for (const file of files) {
+          const formData = new FormData();
+          formData.append("file", file);
+          await fetch(`${API_BASE}/documents/upload`, {
+            method: "POST",
+            headers: { "X-Auth-Token": token || "" },
+            body: formData,
+          });
+        }
+        e.target.value = "";
+        loadFromApi();
+      });
+
+      document.getElementById("logoutLink").addEventListener("click", (e) => {
+        e.preventDefault();
+        fetch(`${API_BASE}/logout`, {
+          method: "POST",
+          headers: { "X-Auth-Token": token || "" },
+        }).finally(() => {
+          localStorage.removeItem("cf_token");
+          window.location.href = "login.html";
+        });
+      });
+
+      if (!token) {
+        window.location.href = "login.html";
+      } else {
+        loadFromApi();
+      }
+    </script>
+  </body>
+</html>

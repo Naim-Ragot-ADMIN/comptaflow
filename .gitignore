@@ -1,0 +1,5 @@
+.venv/
+.env
+backend/comptaflow.db
+backend/uploads/
+__pycache__/

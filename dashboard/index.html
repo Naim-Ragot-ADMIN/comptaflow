@@ -1,0 +1,1373 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ComptaFlow - Automatisation comptable</title>
+    <style>
+      :root {
+        --ink: #0b0f14;
+        --muted: #6b7280;
+        --brand: #0f766e;
+        --brand-2: #f59e0b;
+        --bg: #f7f5f0;
+        --paper: #ffffff;
+        --line: #e5e7eb;
+        --shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Space Grotesk", "Segoe UI", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top right, #fff3c9 0, transparent 50%),
+          radial-gradient(circle at 20% 20%, #d2f2ed 0, transparent 40%),
+          var(--bg);
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 24px 48px;
+      }
+
+      .logo {
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .logo-badge {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--brand), #0e7490);
+        color: white;
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+      }
+
+      nav a {
+        color: var(--ink);
+        text-decoration: none;
+        margin-left: 20px;
+        font-weight: 600;
+      }
+
+      .hero {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px 48px 24px;
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 36px;
+      }
+
+      .hero h1 {
+        font-size: 44px;
+        line-height: 1.05;
+        margin: 0 0 16px;
+      }
+
+      .hero p {
+        font-size: 18px;
+        color: var(--muted);
+        margin: 0 0 24px;
+      }
+
+      .cta {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        border: none;
+        padding: 12px 20px;
+        border-radius: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      .btn-primary {
+        background: var(--brand);
+        color: white;
+        box-shadow: var(--shadow);
+      }
+
+      .btn-ghost {
+        background: transparent;
+        border: 1px solid var(--line);
+      }
+
+      .hero-card {
+        background: var(--paper);
+        border-radius: 22px;
+        padding: 20px;
+        box-shadow: var(--shadow);
+        display: grid;
+        gap: 16px;
+      }
+
+      .metric {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f8fafc;
+        padding: 12px 14px;
+        border-radius: 14px;
+        font-weight: 600;
+      }
+
+      .metric span {
+        color: var(--muted);
+        font-weight: 500;
+      }
+
+      .section {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 24px 48px 12px;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+      }
+
+      .card {
+        background: var(--paper);
+        border-radius: 18px;
+        padding: 16px;
+        border: 1px solid var(--line);
+      }
+
+      .card h3 {
+        margin: 0 0 8px;
+        font-size: 16px;
+      }
+
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .workspace {
+        margin-top: 10px;
+        background: var(--paper);
+        border-radius: 22px;
+        padding: 22px;
+        box-shadow: var(--shadow);
+      }
+
+      .workspace-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+
+      .upload-box {
+        border: 2px dashed #cbd5f5;
+        border-radius: 18px;
+        padding: 18px;
+        display: grid;
+        gap: 10px;
+        background: #f8fafc;
+      }
+
+      .upload-box input {
+        display: block;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+
+      th, td {
+        text-align: left;
+        padding: 10px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .status {
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 12px;
+        display: inline-block;
+      }
+
+      .status.ok { background: #dcfce7; color: #166534; }
+      .status.wait { background: #fef3c7; color: #92400e; }
+      .status.err { background: #fee2e2; color: #991b1b; }
+
+      .footer {
+        padding: 24px 48px 36px;
+        color: var(--muted);
+        text-align: center;
+        font-size: 13px;
+      }
+
+      @media (max-width: 900px) {
+        header {
+          padding: 20px 24px;
+        }
+        .hero {
+          grid-template-columns: 1fr;
+          padding: 18px 24px;
+        }
+        .section {
+          padding: 18px 24px 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="logo">
+        <div class="logo-badge">CF</div>
+        ComptaFlow
+      </div>
+      <nav>
+        <a href="#features">Fonctions</a>
+        <a href="#workspace">Démo</a>
+        <a href="login.html" id="loginLink">Connexion</a>
+        <a href="#" id="logoutLink" style="display:none;">Déconnexion</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div>
+        <h1>Automatisez 80% du travail comptable répétitif.</h1>
+        <p>
+          ComptaFlow centralise les pièces, extrait les données, propose des écritures,
+          et prépare vos exports. Vos clients déposent, l'IA prépare, le comptable valide.
+        </p>
+        <div class="cta">
+          <button class="btn btn-primary" id="startDemo">Lancer la démo</button>
+          <button class="btn btn-ghost" id="downloadCsv">Exporter CSV</button>
+          <button class="btn btn-ghost" id="downloadXlsx">Exporter XLSX</button>
+          <button class="btn btn-ghost" id="downloadEntries">Exporter écritures</button>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="metric">
+          Temps gagné <strong>12h / mois</strong>
+          <span>moyenne</span>
+        </div>
+        <div class="metric">
+          Taux d'extraction <strong>96%</strong>
+          <span>OCR + règles</span>
+        </div>
+        <div class="metric">
+          Pièces traitées <strong id="countDocs">0</strong>
+          <span>ce mois</span>
+        </div>
+        <div class="metric">
+          TVA détectée <strong id="sumVat">0 €</strong>
+          <span>pré-contrôle</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="cards">
+        <div class="card">
+          <h3>Collecte intelligente</h3>
+          <p>Portail client simple + suivi des pièces manquantes.</p>
+        </div>
+        <div class="card">
+          <h3>OCR + extraction</h3>
+          <p>Lecture automatique des montants, TVA, fournisseurs, dates.</p>
+        </div>
+        <div class="card">
+          <h3>Pré-écritures</h3>
+          <p>Catégorisation automatique et export CSV compatible.</p>
+        </div>
+        <div class="card">
+          <h3>Rapprochement</h3>
+          <p>Matching transactions + alertes d'écart.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="workspace">
+      <div class="workspace">
+        <div class="workspace-header">
+          <div>
+            <h2 style="margin:0 0 6px;">Espace de traitement</h2>
+            <div style="color:var(--muted);">Déposez des pièces pour simuler l'extraction.</div>
+          </div>
+          <button class="btn btn-primary" id="autoGenerate">Générer 3 pièces</button>
+        </div>
+        <div class="upload-box">
+          <label for="upload">Importer des factures (PDF, JPG, PNG)</label>
+          <input type="file" id="upload" multiple />
+          <small style="color:var(--muted);">
+            Les données sont simulées pour la démo. Aucun fichier n'est envoyé.
+          </small>
+        </div>
+        <div style="overflow:auto; margin-top: 18px;">
+          <table id="docTable">
+            <thead>
+              <tr>
+                <th>Pièce</th>
+                <th>Fournisseur</th>
+                <th>Date</th>
+                <th>Montant TTC</th>
+                <th>TVA</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="journal">
+      <div class="workspace">
+        <div class="workspace-header">
+          <div>
+            <h2 style="margin:0 0 6px;">Journal comptable</h2>
+            <div style="color:var(--muted);">Prévisualisation des écritures générées.</div>
+          </div>
+        </div>
+        <div style="overflow:auto; margin-top: 10px;">
+          <table id="entryTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Journal</th>
+                <th>Compte</th>
+                <th>Libellé</th>
+                <th>Débit</th>
+                <th>Crédit</th>
+                <th>Pièce</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="rules">
+      <div class="workspace">
+        <div class="workspace-header">
+          <div>
+            <h2 style="margin:0 0 6px;">Règles comptables</h2>
+            <div style="color:var(--muted);">Associe un fournisseur à un compte.</div>
+          </div>
+        </div>
+        <div class="upload-box" style="border-style:solid;">
+          <label>Ajouter une règle</label>
+          <div style="display:grid; grid-template-columns: 1fr 1fr 2fr; gap:10px;">
+            <input id="ruleKeyword" placeholder="ex: orange" />
+            <input id="ruleCode" placeholder="ex: 626000" />
+            <input id="ruleLabel" placeholder="ex: Frais telecom" />
+          </div>
+          <button class="btn btn-primary" id="addRule" style="width:max-content;">Ajouter</button>
+        </div>
+        <div style="overflow:auto; margin-top: 12px;">
+          <table id="ruleTable">
+            <thead>
+              <tr>
+                <th>Mot-clé</th>
+                <th>Compte</th>
+                <th>Libellé</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="bank">
+      <div class="workspace">
+        <div class="workspace-header">
+          <div>
+            <h2 style="margin:0 0 6px;">Banque & rapprochement</h2>
+            <div style="color:var(--muted);">Importe un relevé CSV et lance le matching.</div>
+          </div>
+        </div>
+        <div class="upload-box" style="border-style:solid;">
+          <label>Importer un relevé bancaire (CSV)</label>
+          <input type="file" id="bankUpload" />
+          <small style="color:var(--muted);">Colonnes attendues: date, description, amount.</small>
+        </div>
+        <div style="overflow:auto; margin-top: 12px;">
+          <table id="bankTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Montant</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div style="overflow:auto; margin-top: 12px;">
+          <table id="recoTable">
+            <thead>
+              <tr>
+                <th>Pièce</th>
+                <th>Transaction</th>
+                <th>Score</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="users">
+      <div class="workspace">
+        <div class="workspace-header">
+          <div>
+            <h2 style="margin:0 0 6px;">Équipe & accès</h2>
+            <div style="color:var(--muted);">Crée les comptes comptables et clients.</div>
+          </div>
+        </div>
+        <div class="upload-box" style="border-style:solid;">
+          <label>Ajouter un utilisateur</label>
+          <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:10px;">
+            <input id="userEmail" placeholder="email@cabinet.fr" />
+            <input id="userPassword" placeholder="mot de passe" />
+            <select id="userRole">
+              <option value="accountant">accountant</option>
+              <option value="client">client</option>
+              <option value="admin">admin</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="addUser" style="width:max-content;">Ajouter</button>
+        </div>
+        <div style="overflow:auto; margin-top: 12px;">
+          <table id="userTable">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Rôle</th>
+                <th>Créé</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="billing">
+      <div class="workspace">
+        <div class="workspace-header">
+          <div>
+            <h2 style="margin:0 0 6px;">Abonnement</h2>
+            <div style="color:var(--muted);">Choisis ton plan SaaS.</div>
+          </div>
+        </div>
+        <div id="billingStatus" style="margin-bottom:10px; color:var(--muted);"></div>
+        <div id="billingError" style="margin-bottom:10px; color:#b91c1c; display:none;"></div>
+        <button class="btn btn-ghost" id="billingTest" style="margin-bottom:10px;">Tester Stripe</button>
+        <div id="billingMetrics" class="cards" style="margin-bottom:12px;"></div>
+        <div class="cards" id="planCards"></div>
+      </div>
+    </section>
+
+    <section class="section" id="invoices">
+      <div class="workspace">
+        <div class="workspace-header">
+          <div>
+            <h2 style="margin:0 0 6px;">Factures</h2>
+            <div style="color:var(--muted);">Téléchargements Stripe.</div>
+          </div>
+        </div>
+        <div style="overflow:auto; margin-top: 10px;">
+          <table id="invoiceTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Statut</th>
+                <th>Montant</th>
+                <th>Créée</th>
+                <th>Lien</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="support">
+      <div class="workspace">
+        <div class="workspace-header">
+          <div>
+            <h2 style="margin:0 0 6px;">Support</h2>
+            <div style="color:var(--muted);">Tickets clients et suivi.</div>
+          </div>
+        </div>
+        <div class="upload-box" style="border-style:solid;">
+          <label>Créer un ticket</label>
+          <input id="ticketSubject" placeholder="Sujet" />
+          <textarea id="ticketMessage" rows="3" placeholder="Décris ton besoin..."></textarea>
+          <button class="btn btn-primary" id="createTicket" style="width:max-content;">Envoyer</button>
+        </div>
+        <div style="overflow:auto; margin-top: 12px;">
+          <table id="ticketTable">
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Sujet</th>
+                <th>Statut</th>
+                <th>Créé</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="kb">
+      <div class="workspace">
+        <div class="workspace-header">
+          <div>
+            <h2 style="margin:0 0 6px;">Base de connaissance</h2>
+            <div style="color:var(--muted);">FAQ et guides clients.</div>
+          </div>
+        </div>
+        <div class="upload-box" style="border-style:solid;">
+          <label>Ajouter un article</label>
+          <input id="kbTitle" placeholder="Titre" />
+          <textarea id="kbContent" rows="4" placeholder="Contenu..."></textarea>
+          <button class="btn btn-primary" id="addKb" style="width:max-content;">Publier</button>
+        </div>
+        <div style="overflow:auto; margin-top: 12px;">
+          <table id="kbTable">
+            <thead>
+              <tr>
+                <th>Titre</th>
+                <th>Créé</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="notifications">
+      <div class="workspace">
+        <div class="workspace-header">
+          <div>
+            <h2 style="margin:0 0 6px;">Notifications</h2>
+            <div style="color:var(--muted);">Messages aux clients.</div>
+          </div>
+        </div>
+        <div class="upload-box" style="border-style:solid;">
+          <label>Nouvelle notification</label>
+          <input id="notifMessage" placeholder="Message" />
+          <select id="notifLevel">
+            <option value="info">info</option>
+            <option value="success">success</option>
+            <option value="warning">warning</option>
+          </select>
+          <button class="btn btn-primary" id="addNotif" style="width:max-content;">Publier</button>
+        </div>
+        <div style="overflow:auto; margin-top: 12px;">
+          <table id="notifTable">
+            <thead>
+              <tr>
+                <th>Message</th>
+                <th>Niveau</th>
+                <th>Créé</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="emails">
+      <div class="workspace">
+        <div class="workspace-header">
+          <div>
+            <h2 style="margin:0 0 6px;">Emails</h2>
+            <div style="color:var(--muted);">Envoi SMTP (relances, messages).</div>
+          </div>
+        </div>
+        <div class="upload-box" style="border-style:solid;">
+          <label>Envoyer un email</label>
+          <input id="emailTo" placeholder="client@email.com" />
+          <input id="emailSubject" placeholder="Sujet" />
+          <textarea id="emailBody" rows="3" placeholder="Message..."></textarea>
+          <button class="btn btn-primary" id="sendEmail" style="width:max-content;">Envoyer</button>
+        </div>
+        <div style="overflow:auto; margin-top: 12px;">
+          <table id="emailTable">
+            <thead>
+              <tr>
+                <th>Destinataire</th>
+                <th>Sujet</th>
+                <th>Statut</th>
+                <th>Créé</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="workflows">
+      <div class="workspace">
+        <div class="workspace-header">
+          <div>
+            <h2 style="margin:0 0 6px;">Workflows</h2>
+            <div style="color:var(--muted);">Automatise les relances.</div>
+          </div>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <h3>Relance pièces manquantes</h3>
+            <p>Crée une notification si des pièces sont en attente.</p>
+            <button class="btn btn-primary" id="wfMissing">Lancer</button>
+          </div>
+          <div class="card">
+            <h3>Rappel mensuel</h3>
+            <p>Envoie un email aux clients.</p>
+            <button class="btn btn-primary" id="wfMonthly">Lancer</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer">Prototype v1 - prêt à être branché sur un OCR réel.</div>
+
+    <script src="config.js"></script>
+    <script>
+      const API_BASE = window.CF_API_BASE || "http://localhost:8000";
+      const docs = [];
+      const tbody = document.querySelector("#docTable tbody");
+      const entryBody = document.querySelector("#entryTable tbody");
+      const ruleBody = document.querySelector("#ruleTable tbody");
+      const bankBody = document.querySelector("#bankTable tbody");
+      const recoBody = document.querySelector("#recoTable tbody");
+      const userBody = document.querySelector("#userTable tbody");
+      const planCards = document.getElementById("planCards");
+      const billingStatus = document.getElementById("billingStatus");
+      const billingMetrics = document.getElementById("billingMetrics");
+      const billingError = document.getElementById("billingError");
+      const billingTest = document.getElementById("billingTest");
+      const invoiceBody = document.querySelector("#invoiceTable tbody");
+      const ticketBody = document.querySelector("#ticketTable tbody");
+      const kbBody = document.querySelector("#kbTable tbody");
+      const notifBody = document.querySelector("#notifTable tbody");
+      const emailBody = document.querySelector("#emailTable tbody");
+      const countDocs = document.getElementById("countDocs");
+      const sumVat = document.getElementById("sumVat");
+      const token = localStorage.getItem("cf_token");
+      const headerLogo = document.querySelector(".logo");
+      const userRoleTag = document.createElement("div");
+
+      const vendors = ["Orange", "SNCF", "Amazon Business", "EDF", "Ikea", "OVH"];
+
+      const fmt = (n) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+
+      async function addDoc(name, fileObj = null) {
+        try {
+          let res;
+          if (fileObj) {
+            const formData = new FormData();
+            formData.append("file", fileObj);
+            res = await fetch(`${API_BASE}/documents/upload`, {
+              method: "POST",
+              headers: { "X-Auth-Token": token || "" },
+              body: formData,
+            });
+          } else {
+            res = await fetch(`${API_BASE}/documents`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+              body: JSON.stringify({ filename: name }),
+            });
+          }
+          if (!res.ok) throw new Error("API error");
+          const item = await res.json();
+          docs.unshift({
+            name: item.filename,
+            vendor: item.vendor,
+            date: new Date(item.doc_date),
+            amount: item.amount_ttc,
+            vat: item.vat,
+            status: item.status === "OK" ? "OK" : "A verifier",
+          });
+          render();
+          return;
+        } catch (err) {
+          const amount = Math.round((Math.random() * 900 + 100) * 100) / 100;
+          const vat = Math.round(amount * 0.2 * 100) / 100;
+          const vendor = vendors[Math.floor(Math.random() * vendors.length)];
+          const date = new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24 * 30);
+          const status = Math.random() > 0.15 ? "OK" : "A verifier";
+          const item = { name, vendor, date, amount, vat, status };
+          docs.push(item);
+          render();
+        }
+      }
+
+      function render() {
+        tbody.innerHTML = "";
+        docs.forEach((doc) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${doc.name}</td>
+            <td>${doc.vendor}</td>
+            <td>${doc.date.toLocaleDateString("fr-FR")}</td>
+            <td>${fmt(doc.amount)}</td>
+            <td>${fmt(doc.vat)}</td>
+            <td>
+              <span class="status ${doc.status === "OK" ? "ok" : "wait"}">
+                ${doc.status}
+              </span>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+        countDocs.textContent = docs.length;
+        const totalVat = docs.reduce((acc, d) => acc + d.vat, 0);
+        sumVat.textContent = fmt(totalVat);
+      }
+
+      document.getElementById("upload").addEventListener("change", (e) => {
+        [...e.target.files].forEach((file) => addDoc(file.name, file));
+        e.target.value = "";
+      });
+
+      document.getElementById("autoGenerate").addEventListener("click", async () => {
+        await addDoc("Facture-Orange-2026-01.pdf");
+        await addDoc("Ticket-SNCF-2026-01.jpg");
+        await addDoc("Achat-OVH-2026-01.pdf");
+      });
+
+      document.getElementById("startDemo").addEventListener("click", async () => {
+        await document.getElementById("autoGenerate").click();
+        document.getElementById("workspace").scrollIntoView({ behavior: "smooth" });
+      });
+
+      document.getElementById("downloadCsv").addEventListener("click", async () => {
+        if (docs.length === 0) {
+          alert("Ajoute au moins une pièce pour exporter.");
+          return;
+        }
+        try {
+          const res = await fetch(`${API_BASE}/documents.csv`, {
+            headers: { "X-Auth-Token": token || "" },
+          });
+          if (!res.ok) throw new Error("API error");
+          const csv = await res.text();
+          const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = "export-comptaflow.csv";
+          link.click();
+          URL.revokeObjectURL(link.href);
+          return;
+        } catch (err) {
+          const header = ["piece", "fournisseur", "date", "montant_ttc", "tva", "statut"];
+          const rows = docs.map((d) => [
+            d.name, d.vendor, d.date.toISOString().slice(0,10), d.amount, d.vat, d.status
+          ]);
+          const csv = [header, ...rows]
+            .map((r) => r.join(","))
+            .join("\n");
+          const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = "export-comptaflow.csv";
+          link.click();
+          URL.revokeObjectURL(link.href);
+        }
+      });
+
+      document.getElementById("downloadXlsx").addEventListener("click", async () => {
+        if (docs.length === 0) {
+          alert("Ajoute au moins une pièce pour exporter.");
+          return;
+        }
+        try {
+          const res = await fetch(`${API_BASE}/documents.xlsx`, {
+            headers: { "X-Auth-Token": token || "" },
+          });
+          if (!res.ok) throw new Error("API error");
+          const blob = await res.blob();
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = "export-comptaflow.xlsx";
+          link.click();
+          URL.revokeObjectURL(link.href);
+        } catch (err) {
+          alert("Export XLSX indisponible. Installe openpyxl côté serveur.");
+        }
+      });
+
+      document.getElementById("downloadEntries").addEventListener("click", async () => {
+        if (docs.length === 0) {
+          alert("Ajoute au moins une pièce pour exporter.");
+          return;
+        }
+        try {
+          const res = await fetch(`${API_BASE}/entries.xlsx`, {
+            headers: { "X-Auth-Token": token || "" },
+          });
+          if (!res.ok) throw new Error("API error");
+          const blob = await res.blob();
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = "export-ecritures.xlsx";
+          link.click();
+          URL.revokeObjectURL(link.href);
+        } catch (err) {
+          alert("Export écritures indisponible. Installe openpyxl côté serveur.");
+        }
+      });
+
+      async function loadFromApi() {
+        try {
+          const me = await fetch(`${API_BASE}/me`, {
+            headers: { "X-Auth-Token": token || "" },
+          }).then((r) => r.json());
+          userRoleTag.style.marginLeft = "12px";
+          userRoleTag.style.padding = "4px 8px";
+          userRoleTag.style.borderRadius = "999px";
+          userRoleTag.style.fontSize = "12px";
+          userRoleTag.style.background = "#ecfeff";
+          userRoleTag.style.color = "#0e7490";
+          userRoleTag.textContent = `${me.tenant || "Cabinet"} · ${me.role || "role"}`;
+          headerLogo.appendChild(userRoleTag);
+
+          if (me.role === "client") {
+            alert("Accès client détecté. Redirection vers l'espace client.");
+            window.location.href = "client.html";
+            return;
+          }
+
+          if (me.role !== "admin") {
+            document.getElementById("users").style.display = "none";
+            document.getElementById("billing").style.display = "none";
+            document.getElementById("invoices").style.display = "none";
+            document.getElementById("kb").style.display = "none";
+            document.getElementById("notifications").style.display = "none";
+            document.getElementById("emails").style.display = "none";
+            document.getElementById("workflows").style.display = "none";
+          }
+
+          const res = await fetch(`${API_BASE}/documents`, {
+            headers: { "X-Auth-Token": token || "" },
+          });
+          if (!res.ok) throw new Error("API error");
+          const data = await res.json();
+          docs.length = 0;
+          data.items.forEach((item) => {
+            docs.push({
+              name: item.filename,
+              vendor: item.vendor,
+              date: new Date(item.doc_date),
+              amount: item.amount_ttc,
+              vat: item.vat,
+              status: item.status,
+            });
+          });
+          render();
+          const stats = await fetch(`${API_BASE}/stats`, {
+            headers: { "X-Auth-Token": token || "" },
+          }).then((r) => r.json());
+          countDocs.textContent = stats.count;
+          sumVat.textContent = fmt(stats.vat_sum || 0);
+
+          const entries = await fetch(`${API_BASE}/entries`, {
+            headers: { "X-Auth-Token": token || "" },
+          }).then((r) => r.json());
+          entryBody.innerHTML = "";
+          entries.slice(0, 30).forEach((e) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${e.date}</td>
+              <td>${e.journal}</td>
+              <td>${e.account}</td>
+              <td>${e.label}</td>
+              <td>${fmt(e.debit)}</td>
+              <td>${fmt(e.credit)}</td>
+              <td>${e.doc}</td>
+            `;
+            entryBody.appendChild(tr);
+          });
+
+          const rules = await fetch(`${API_BASE}/rules`, {
+            headers: { "X-Auth-Token": token || "" },
+          }).then((r) => r.json());
+          ruleBody.innerHTML = "";
+          rules.forEach((r) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${r.keyword}</td>
+              <td>${r.account_code}</td>
+              <td>${r.account_label}</td>
+              <td><button class="btn btn-ghost" data-id="${r.id}">Supprimer</button></td>
+            `;
+            tr.querySelector("button").addEventListener("click", async () => {
+              await fetch(`${API_BASE}/rules/${r.id}`, {
+                method: "DELETE",
+                headers: { "X-Auth-Token": token || "" },
+              });
+              loadFromApi();
+            });
+            ruleBody.appendChild(tr);
+          });
+
+          const bank = await fetch(`${API_BASE}/bank`, {
+            headers: { "X-Auth-Token": token || "" },
+          }).then((r) => r.json());
+          bankBody.innerHTML = "";
+          bank.slice(0, 20).forEach((b) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${b.txn_date}</td>
+              <td>${b.description}</td>
+              <td>${fmt(b.amount)}</td>
+            `;
+            bankBody.appendChild(tr);
+          });
+
+          const recos = await fetch(`${API_BASE}/reconciliations`, {
+            headers: { "X-Auth-Token": token || "" },
+          }).then((r) => r.json());
+          recoBody.innerHTML = "";
+          recos.slice(0, 20).forEach((m) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>#${m.document_id}</td>
+              <td>#${m.bank_txn_id}</td>
+              <td>${m.match_score}</td>
+            `;
+            recoBody.appendChild(tr);
+          });
+
+          if (me.role === "admin") {
+            const users = await fetch(`${API_BASE}/users`, {
+              headers: { "X-Auth-Token": token || "" },
+            }).then((r) => r.json());
+            userBody.innerHTML = "";
+            users.forEach((u) => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>${u.email}</td>
+                <td>${u.role}</td>
+                <td>${u.created_at.slice(0, 10)}</td>
+                <td><button class="btn btn-ghost" data-id="${u.id}">Supprimer</button></td>
+              `;
+              tr.querySelector("button").addEventListener("click", async () => {
+                await fetch(`${API_BASE}/users/${u.id}`, {
+                  method: "DELETE",
+                  headers: { "X-Auth-Token": token || "" },
+                });
+                loadFromApi();
+              });
+              userBody.appendChild(tr);
+            });
+
+            const plans = await fetch(`${API_BASE}/billing/plans`).then((r) => r.json());
+            const cfg = await fetch(`${API_BASE}/billing/config`).then((r) => r.json());
+            if (!cfg.ok) {
+              billingError.style.display = "block";
+              billingError.textContent = `Stripe incomplet. Manque: ${cfg.missing.join(", ")}`;
+              billingTest.style.display = "none";
+            } else {
+              billingError.style.display = "none";
+              billingTest.style.display = "inline-block";
+            }
+            const status = await fetch(`${API_BASE}/billing/status`, {
+              headers: { "X-Auth-Token": token || "" },
+            }).then((r) => r.json());
+            billingStatus.textContent = `Statut abonnement: ${status.status} · Plan: ${status.plan_id}`;
+            const metrics = await fetch(`${API_BASE}/billing/metrics`, {
+              headers: { "X-Auth-Token": token || "" },
+            }).then((r) => r.json());
+            const analytics = await fetch(`${API_BASE}/billing/analytics`, {
+              headers: { "X-Auth-Token": token || "" },
+            }).then((r) => r.json());
+            billingMetrics.innerHTML = `
+              <div class="card">
+                <h3>Abonnements actifs</h3>
+                <p>${metrics.active_subscriptions}</p>
+              </div>
+              <div class="card">
+                <h3>Statuts</h3>
+                <p>${Object.entries(metrics.status_breakdown)
+                  .map(([k, v]) => `${k}: ${v}`)
+                  .join(" · ") || "aucun"}</p>
+              </div>
+              <div class="card">
+                <h3>MRR</h3>
+                <p>${analytics.mrr}€</p>
+              </div>
+              <div class="card">
+                <h3>ARPA</h3>
+                <p>${analytics.arpa}€</p>
+              </div>
+              <div class="card">
+                <h3>Churn</h3>
+                <p>${analytics.churn}%</p>
+              </div>
+            `;
+            planCards.innerHTML = "";
+            plans.plans.forEach((p) => {
+              const card = document.createElement("div");
+              card.className = "card";
+              card.innerHTML = `
+                <h3>${p.name}</h3>
+                <p><strong>${p.price_eur_month}€ / mois</strong></p>
+                <p>${p.features.join(" · ")}</p>
+                <button class="btn btn-primary" data-id="${p.id}">Choisir</button>
+              `;
+              card.querySelector("button").addEventListener("click", async () => {
+                billingError.style.display = "none";
+                try {
+                  const res = await fetch(`${API_BASE}/billing/checkout`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+                    body: JSON.stringify({ plan_id: p.id }),
+                  });
+                  if (!res.ok) {
+                    const errText = await res.text();
+                    throw new Error(errText || "billing");
+                  }
+                  const data = await res.json();
+                  if (!data.checkout_url) {
+                    throw new Error("checkout_url missing");
+                  }
+                  window.open(data.checkout_url, "_blank");
+                } catch (err) {
+                  billingError.style.display = "block";
+                  billingError.textContent =
+                    "Paiement indisponible. Configure Stripe dans .env (STRIPE_SECRET_KEY, PRICES, WEBHOOK).";
+                }
+              });
+              planCards.appendChild(card);
+            });
+
+            const inv = await fetch(`${API_BASE}/billing/invoices`, {
+              headers: { "X-Auth-Token": token || "" },
+            }).then((r) => r.json());
+            invoiceBody.innerHTML = "";
+            (inv.invoices || []).forEach((i) => {
+              const tr = document.createElement("tr");
+              const created = i.created ? new Date(i.created * 1000).toLocaleDateString("fr-FR") : "-";
+              const amount = `${(i.amount_due || 0).toLocaleString("fr-FR")} ${i.currency || "eur"}`;
+              const link = i.hosted_invoice_url || i.invoice_pdf || "#";
+              tr.innerHTML = `
+                <td>${i.id}</td>
+                <td>${i.status}</td>
+                <td>${amount}</td>
+                <td>${created}</td>
+                <td><a href="${link}" target="_blank">Voir</a></td>
+              `;
+              invoiceBody.appendChild(tr);
+            });
+          }
+
+          const tickets = await fetch(`${API_BASE}/support/tickets`, {
+            headers: { "X-Auth-Token": token || "" },
+          }).then((r) => r.json());
+          ticketBody.innerHTML = "";
+          tickets.forEach((t) => {
+            const tr = document.createElement("tr");
+            const created = t.created_at.slice(0, 10);
+            const action = (me.role === "admin" || me.role === "accountant") && t.status !== "closed"
+              ? `<button class="btn btn-ghost" data-id="${t.id}">Clore</button>`
+              : "";
+            tr.innerHTML = `
+              <td>${t.user_email}</td>
+              <td>${t.subject}</td>
+              <td>${t.status}</td>
+              <td>${created}</td>
+              <td>${action}</td>
+            `;
+            const btn = tr.querySelector("button");
+            if (btn) {
+              btn.addEventListener("click", async () => {
+                await fetch(`${API_BASE}/support/tickets/${t.id}/close`, {
+                  method: "POST",
+                  headers: { "X-Auth-Token": token || "" },
+                });
+                loadFromApi();
+              });
+            }
+            ticketBody.appendChild(tr);
+          });
+
+          const kb = await fetch(`${API_BASE}/kb`, {
+            headers: { "X-Auth-Token": token || "" },
+          }).then((r) => r.json());
+          kbBody.innerHTML = "";
+          kb.forEach((k) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${k.title}</td>
+              <td>${k.created_at.slice(0, 10)}</td>
+              <td><button class="btn btn-ghost" data-id="${k.id}">Supprimer</button></td>
+            `;
+            tr.querySelector("button").addEventListener("click", async () => {
+              await fetch(`${API_BASE}/kb/${k.id}`, {
+                method: "DELETE",
+                headers: { "X-Auth-Token": token || "" },
+              });
+              loadFromApi();
+            });
+            kbBody.appendChild(tr);
+          });
+
+          const notifs = await fetch(`${API_BASE}/notifications`, {
+            headers: { "X-Auth-Token": token || "" },
+          }).then((r) => r.json());
+          notifBody.innerHTML = "";
+          notifs.forEach((n) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${n.message}</td>
+              <td>${n.level}</td>
+              <td>${n.created_at.slice(0, 10)}</td>
+              <td><button class="btn btn-ghost" data-id="${n.id}">Supprimer</button></td>
+            `;
+            tr.querySelector("button").addEventListener("click", async () => {
+              await fetch(`${API_BASE}/notifications/${n.id}`, {
+                method: "DELETE",
+                headers: { "X-Auth-Token": token || "" },
+              });
+              loadFromApi();
+            });
+            notifBody.appendChild(tr);
+          });
+
+          if (me.role === "admin" || me.role === "accountant") {
+            const emails = await fetch(`${API_BASE}/emails`, {
+              headers: { "X-Auth-Token": token || "" },
+            }).then((r) => r.json());
+            emailBody.innerHTML = "";
+            emails.forEach((e) => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>${e.to_email}</td>
+                <td>${e.subject}</td>
+                <td>${e.status}</td>
+                <td>${e.created_at.slice(0, 10)}</td>
+              `;
+              emailBody.appendChild(tr);
+            });
+          }
+        } catch (err) {
+          render();
+        }
+      }
+
+      const loginLink = document.getElementById("loginLink");
+      const logoutLink = document.getElementById("logoutLink");
+      if (!token) {
+        alert("Merci de vous connecter pour accéder à la démo.");
+        window.location.href = "login.html";
+      } else {
+        loginLink.style.display = "none";
+        logoutLink.style.display = "inline";
+        logoutLink.addEventListener("click", (e) => {
+          e.preventDefault();
+          fetch(`${API_BASE}/logout`, {
+            method: "POST",
+            headers: { "X-Auth-Token": token || "" },
+          }).finally(() => {
+            localStorage.removeItem("cf_token");
+            window.location.href = "login.html";
+          });
+        });
+        loadFromApi();
+      }
+
+      document.getElementById("addRule").addEventListener("click", async () => {
+        const keyword = document.getElementById("ruleKeyword").value.trim();
+        const code = document.getElementById("ruleCode").value.trim();
+        const label = document.getElementById("ruleLabel").value.trim();
+        if (!keyword || !code || !label) {
+          alert("Merci de remplir les 3 champs.");
+          return;
+        }
+        await fetch(`${API_BASE}/rules`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+          body: JSON.stringify({ keyword, account_code: code, account_label: label }),
+        });
+        document.getElementById("ruleKeyword").value = "";
+        document.getElementById("ruleCode").value = "";
+        document.getElementById("ruleLabel").value = "";
+        loadFromApi();
+      });
+
+      document.getElementById("bankUpload").addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append("file", file);
+        await fetch(`${API_BASE}/bank/import`, {
+          method: "POST",
+          headers: { "X-Auth-Token": token || "" },
+          body: formData,
+        });
+        e.target.value = "";
+        loadFromApi();
+      });
+
+      document.getElementById("addUser").addEventListener("click", async () => {
+        const email = document.getElementById("userEmail").value.trim();
+        const password = document.getElementById("userPassword").value.trim();
+        const role = document.getElementById("userRole").value;
+        if (!email || !password) {
+          alert("Merci de remplir email + mot de passe.");
+          return;
+        }
+        await fetch(`${API_BASE}/users`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+          body: JSON.stringify({ email, password, role }),
+        });
+        document.getElementById("userEmail").value = "";
+        document.getElementById("userPassword").value = "";
+        loadFromApi();
+      });
+
+      document.getElementById("createTicket").addEventListener("click", async () => {
+        const subject = document.getElementById("ticketSubject").value.trim();
+        const message = document.getElementById("ticketMessage").value.trim();
+        if (!subject || !message) {
+          alert("Merci de remplir sujet et message.");
+          return;
+        }
+        await fetch(`${API_BASE}/support/tickets`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+          body: JSON.stringify({ subject, message }),
+        });
+        document.getElementById("ticketSubject").value = "";
+        document.getElementById("ticketMessage").value = "";
+        loadFromApi();
+      });
+
+      document.getElementById("addKb").addEventListener("click", async () => {
+        const title = document.getElementById("kbTitle").value.trim();
+        const content = document.getElementById("kbContent").value.trim();
+        if (!title || !content) {
+          alert("Merci de remplir titre et contenu.");
+          return;
+        }
+        await fetch(`${API_BASE}/kb`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+          body: JSON.stringify({ title, content }),
+        });
+        document.getElementById("kbTitle").value = "";
+        document.getElementById("kbContent").value = "";
+        loadFromApi();
+      });
+
+      document.getElementById("addNotif").addEventListener("click", async () => {
+        const message = document.getElementById("notifMessage").value.trim();
+        const level = document.getElementById("notifLevel").value;
+        if (!message) {
+          alert("Merci de saisir un message.");
+          return;
+        }
+        await fetch(`${API_BASE}/notifications`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+          body: JSON.stringify({ message, level }),
+        });
+        document.getElementById("notifMessage").value = "";
+        loadFromApi();
+      });
+
+      document.getElementById("sendEmail").addEventListener("click", async () => {
+        const to = document.getElementById("emailTo").value.trim();
+        const subject = document.getElementById("emailSubject").value.trim();
+        const body = document.getElementById("emailBody").value.trim();
+        if (!to || !subject || !body) {
+          alert("Merci de remplir tous les champs.");
+          return;
+        }
+        await fetch(`${API_BASE}/emails`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+          body: JSON.stringify({ to_email: to, subject, body }),
+        });
+        document.getElementById("emailTo").value = "";
+        document.getElementById("emailSubject").value = "";
+        document.getElementById("emailBody").value = "";
+        loadFromApi();
+      });
+
+      document.getElementById("wfMissing").addEventListener("click", async () => {
+        await fetch(`${API_BASE}/workflows/remind-missing`, {
+          method: "POST",
+          headers: { "X-Auth-Token": token || "" },
+        });
+        loadFromApi();
+      });
+
+      document.getElementById("wfMonthly").addEventListener("click", async () => {
+        await fetch(`${API_BASE}/workflows/monthly-reminder`, {
+          method: "POST",
+          headers: { "X-Auth-Token": token || "" },
+        });
+        loadFromApi();
+      });
+
+      billingTest.addEventListener("click", async () => {
+        try {
+          const res = await fetch(`${API_BASE}/billing/test`, {
+            method: "POST",
+            headers: { "X-Auth-Token": token || "" },
+          });
+          if (!res.ok) throw new Error("billing");
+          const data = await res.json();
+          if (data.checkout_url) {
+            window.open(data.checkout_url, "_blank");
+          } else {
+            alert("Test Stripe indisponible.");
+          }
+        } catch (err) {
+          alert("Test Stripe indisponible.");
+        }
+      });
+    </script>
+  </body>
+</html>
