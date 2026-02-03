@@ -63,6 +63,58 @@
         font-weight: 600;
       }
 
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: #f8fafc;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #94a3b8;
+        box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.15);
+      }
+
+      .status-pill.ok .status-dot {
+        background: #22c55e;
+        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
+      }
+
+      .status-pill.warn .status-dot {
+        background: #f59e0b;
+        box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.18);
+      }
+
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #0f172a;
+        color: white;
+        padding: 14px 18px;
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        opacity: 0;
+        transform: translateY(10px);
+        transition: all 0.2s ease;
+        z-index: 50;
+        font-size: 13px;
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
       .hero {
         max-width: 1100px;
         margin: 0 auto;
@@ -242,6 +294,10 @@
       <div class="logo">
         <div class="logo-badge">CF</div>
         ComptaFlow
+      </div>
+      <div class="status-pill" id="apiStatus">
+        <span class="status-dot"></span>
+        API: vérification...
       </div>
       <nav>
         <a href="#features">Fonctions</a>
@@ -671,6 +727,41 @@
     <script src="config.js"></script>
     <script>
       const API_BASE = window.CF_API_BASE || "http://localhost:8000";
+      const statusPill = document.getElementById("apiStatus");
+      const toast = document.getElementById("globalToast");
+
+      const showToast = (message) => {
+        if (!toast) return;
+        toast.textContent = message;
+        toast.classList.add("show");
+        clearTimeout(window.__toastTimer);
+        window.__toastTimer = setTimeout(() => toast.classList.remove("show"), 2600);
+      };
+
+      const setStatus = (state, label) => {
+        if (!statusPill) return;
+        statusPill.classList.remove("ok", "warn");
+        if (state) statusPill.classList.add(state);
+        statusPill.lastChild.textContent = label;
+      };
+
+      const checkHealth = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/health`, { cache: "no-store" });
+          if (!res.ok) throw new Error("health");
+          setStatus("ok", "API: opérationnelle");
+        } catch (err) {
+          setStatus("warn", "API: indisponible");
+          showToast("API injoignable. Vérifiez le backend Render.");
+        }
+      };
+
+      window.addEventListener("error", () =>
+        showToast("Erreur inattendue. Rechargez la page si besoin.")
+      );
+      window.addEventListener("unhandledrejection", () =>
+        showToast("Une action a échoué. Réessayez dans un instant.")
+      );
       const docs = [];
       const tbody = document.querySelector("#docTable tbody");
       const entryBody = document.querySelector("#entryTable tbody");
@@ -1368,6 +1459,10 @@
           alert("Test Stripe indisponible.");
         }
       });
+
+      checkHealth();
+      setInterval(checkHealth, 60000);
     </script>
+    <div class="toast" id="globalToast"></div>
   </body>
 </html>

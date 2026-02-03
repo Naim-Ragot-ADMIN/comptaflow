@@ -60,6 +60,30 @@
         font-size: 12px;
         text-align: center;
       }
+
+      .status-line {
+        margin-top: 10px;
+        font-size: 12px;
+        color: #64748b;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #94a3b8;
+      }
+
+      .status-line.ok .status-dot {
+        background: #22c55e;
+      }
+
+      .status-line.warn .status-dot {
+        background: #f59e0b;
+      }
     </style>
   </head>
   <body>
@@ -67,6 +91,10 @@
       <h1>Connexion</h1>
       <div style="color:#6b7280; font-size:14px;">
         Accès cabinet & client sécurisé
+      </div>
+      <div id="apiStatus" class="status-line">
+        <span class="status-dot"></span>
+        API: vérification...
       </div>
       <label>Email</label>
       <input id="email" type="email" placeholder="admin@comptaflow.fr" />
@@ -81,6 +109,26 @@
     <script src="config.js"></script>
     <script>
       const API_BASE = window.CF_API_BASE || "http://localhost:8000";
+      const statusLine = document.getElementById("apiStatus");
+
+      const setStatus = (state, label) => {
+        if (!statusLine) return;
+        statusLine.classList.remove("ok", "warn");
+        if (state) statusLine.classList.add(state);
+        statusLine.lastChild.textContent = label;
+      };
+
+      const checkHealth = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/health`, { cache: "no-store" });
+          if (!res.ok) throw new Error("health");
+          setStatus("ok", "API: opérationnelle");
+        } catch (err) {
+          setStatus("warn", "API: indisponible");
+        }
+      };
+
+      checkHealth();
       document.getElementById("loginBtn").addEventListener("click", async () => {
         const email = document.getElementById("email").value.trim();
         const password = document.getElementById("password").value.trim();

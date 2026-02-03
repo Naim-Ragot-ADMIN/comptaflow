@@ -53,6 +53,26 @@
         margin-left: 20px;
         font-weight: 600;
       }
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: #f8fafc;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #94a3b8;
+      }
+      .status-pill.ok .status-dot { background: #22c55e; }
+      .status-pill.warn .status-dot { background: #f59e0b; }
       .section {
         max-width: 980px;
         margin: 0 auto;
@@ -122,6 +142,10 @@
         <div class="logo-badge">CF</div>
         ComptaFlow
       </div>
+      <div class="status-pill" id="apiStatus">
+        <span class="status-dot"></span>
+        API: vérification...
+      </div>
       <nav>
         <a href="#" id="logoutLink">Déconnexion</a>
       </nav>
@@ -187,6 +211,27 @@
     <script src="config.js"></script>
     <script>
       const API_BASE = window.CF_API_BASE || "http://localhost:8000";
+      const statusPill = document.getElementById("apiStatus");
+
+      const setStatus = (state, label) => {
+        if (!statusPill) return;
+        statusPill.classList.remove("ok", "warn");
+        if (state) statusPill.classList.add(state);
+        statusPill.lastChild.textContent = label;
+      };
+
+      const checkHealth = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/health`, { cache: "no-store" });
+          if (!res.ok) throw new Error("health");
+          setStatus("ok", "API: opérationnelle");
+        } catch (err) {
+          setStatus("warn", "API: indisponible");
+        }
+      };
+
+      checkHealth();
+      setInterval(checkHealth, 60000);
       const token = localStorage.getItem("cf_token");
       const tbody = document.querySelector("#docTable tbody");
       const kbList = document.getElementById("kbList");
