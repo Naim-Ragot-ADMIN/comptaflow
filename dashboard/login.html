@@ -53,6 +53,10 @@
         font-weight: 700;
         cursor: pointer;
       }
+      button[disabled] {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
 
       .small {
         margin-top: 14px;
@@ -110,6 +114,7 @@
     <script>
       const API_BASE = window.CF_API_BASE || "http://localhost:8000";
       const statusLine = document.getElementById("apiStatus");
+      const loginBtn = document.getElementById("loginBtn");
 
       const setStatus = (state, label) => {
         if (!statusLine) return;
@@ -123,8 +128,10 @@
           const res = await fetch(`${API_BASE}/health`, { cache: "no-store" });
           if (!res.ok) throw new Error("health");
           setStatus("ok", "API: opérationnelle");
+          loginBtn.removeAttribute("disabled");
         } catch (err) {
           setStatus("warn", "API: indisponible");
+          loginBtn.setAttribute("disabled", "disabled");
         }
       };
 

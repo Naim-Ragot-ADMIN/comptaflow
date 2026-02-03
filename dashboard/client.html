@@ -73,6 +73,16 @@
       }
       .status-pill.ok .status-dot { background: #22c55e; }
       .status-pill.warn .status-dot { background: #f59e0b; }
+      .api-locked .workspace {
+        opacity: 0.6;
+      }
+      .api-locked input {
+        pointer-events: none;
+      }
+      input:disabled {
+        background: #f1f5f9;
+        cursor: not-allowed;
+      }
       .section {
         max-width: 980px;
         margin: 0 auto;
@@ -212,6 +222,7 @@
     <script>
       const API_BASE = window.CF_API_BASE || "http://localhost:8000";
       const statusPill = document.getElementById("apiStatus");
+      const uploadInput = document.getElementById("upload");
 
       const setStatus = (state, label) => {
         if (!statusPill) return;
@@ -225,8 +236,12 @@
           const res = await fetch(`${API_BASE}/health`, { cache: "no-store" });
           if (!res.ok) throw new Error("health");
           setStatus("ok", "API: opérationnelle");
+          document.body.classList.remove("api-locked");
+          if (uploadInput) uploadInput.removeAttribute("disabled");
         } catch (err) {
           setStatus("warn", "API: indisponible");
+          document.body.classList.add("api-locked");
+          if (uploadInput) uploadInput.setAttribute("disabled", "disabled");
         }
       };
 

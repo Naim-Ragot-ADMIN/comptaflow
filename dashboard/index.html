@@ -115,6 +115,48 @@
         transform: translateY(0);
       }
 
+      .api-banner {
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        color: #9a3412;
+        padding: 12px 16px;
+        border-radius: 14px;
+        margin: 0 48px 8px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .api-banner.show {
+        display: flex;
+      }
+
+      .api-locked .api-actions {
+        opacity: 0.6;
+      }
+
+      .api-locked .api-actions button,
+      .api-locked .api-actions input,
+      .api-locked .api-actions select,
+      .api-locked .api-actions textarea {
+        pointer-events: none;
+      }
+
+      .btn[disabled] {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      input:disabled,
+      select:disabled,
+      textarea:disabled {
+        background: #f1f5f9;
+        cursor: not-allowed;
+      }
+
       .hero {
         max-width: 1100px;
         margin: 0 auto;
@@ -306,8 +348,13 @@
         <a href="#" id="logoutLink" style="display:none;">Déconnexion</a>
       </nav>
     </header>
+    <div class="api-banner" id="apiBanner">
+      API indisponible. Les actions sont temporairement désactivées.
+      <span>Vérifiez le backend Render.</span>
+    </div>
 
-    <section class="hero">
+    <div class="api-actions">
+      <section class="hero">
       <div>
         <h1>Automatisez 80% du travail comptable répétitif.</h1>
         <p>
@@ -339,9 +386,9 @@
           <span>pré-contrôle</span>
         </div>
       </div>
-    </section>
+      </section>
 
-    <section class="section" id="features">
+      <section class="section" id="features">
       <div class="cards">
         <div class="card">
           <h3>Collecte intelligente</h3>
@@ -360,7 +407,7 @@
           <p>Matching transactions + alertes d'écart.</p>
         </div>
       </div>
-    </section>
+      </section>
 
     <section class="section" id="workspace">
       <div class="workspace">
@@ -722,6 +769,7 @@
       </div>
     </section>
 
+    </div>
     <div class="footer">Prototype v1 - prêt à être branché sur un OCR réel.</div>
 
     <script src="config.js"></script>
@@ -729,6 +777,7 @@
       const API_BASE = window.CF_API_BASE || "http://localhost:8000";
       const statusPill = document.getElementById("apiStatus");
       const toast = document.getElementById("globalToast");
+      const apiBanner = document.getElementById("apiBanner");
 
       const showToast = (message) => {
         if (!toast) return;
@@ -745,13 +794,42 @@
         statusPill.lastChild.textContent = label;
       };
 
+      const setApiLock = (locked) => {
+        document.body.classList.toggle("api-locked", locked);
+        if (apiBanner) apiBanner.classList.toggle("show", locked);
+        document
+          .querySelectorAll(".api-actions button, .api-actions input, .api-actions select, .api-actions textarea")
+          .forEach((el) => {
+            if (locked) {
+              el.setAttribute("disabled", "disabled");
+            } else {
+              el.removeAttribute("disabled");
+            }
+          });
+      };
+
+      const withLoading = async (button, action, label) => {
+        if (!button) return;
+        const original = button.textContent;
+        button.textContent = label || "Traitement...";
+        button.setAttribute("disabled", "disabled");
+        try {
+          await action();
+        } finally {
+          button.removeAttribute("disabled");
+          button.textContent = original;
+        }
+      };
+
       const checkHealth = async () => {
         try {
           const res = await fetch(`${API_BASE}/health`, { cache: "no-store" });
           if (!res.ok) throw new Error("health");
           setStatus("ok", "API: opérationnelle");
+          setApiLock(false);
         } catch (err) {
           setStatus("warn", "API: indisponible");
+          setApiLock(true);
           showToast("API injoignable. Vérifiez le backend Render.");
         }
       };
@@ -854,97 +932,120 @@
         sumVat.textContent = fmt(totalVat);
       }
 
-      document.getElementById("upload").addEventListener("change", (e) => {
-        [...e.target.files].forEach((file) => addDoc(file.name, file));
-        e.target.value = "";
+      document.getElementById("upload").addEventListener("change", async (e) => {
+        const input = e.target;
+        const files = [...input.files];
+        if (files.length === 0) return;
+        input.setAttribute("disabled", "disabled");
+        showToast("Analyse des pièces en cours...");
+        for (const file of files) {
+          await addDoc(file.name, file);
+        }
+        input.value = "";
+        input.removeAttribute("disabled");
       });
 
-      document.getElementById("autoGenerate").addEventListener("click", async () => {
-        await addDoc("Facture-Orange-2026-01.pdf");
-        await addDoc("Ticket-SNCF-2026-01.jpg");
-        await addDoc("Achat-OVH-2026-01.pdf");
+      const autoGenerateBtn = document.getElementById("autoGenerate");
+      autoGenerateBtn.addEventListener("click", async () => {
+        await withLoading(autoGenerateBtn, async () => {
+          await addDoc("Facture-Orange-2026-01.pdf");
+          await addDoc("Ticket-SNCF-2026-01.jpg");
+          await addDoc("Achat-OVH-2026-01.pdf");
+        }, "Génération...");
       });
 
-      document.getElementById("startDemo").addEventListener("click", async () => {
-        await document.getElementById("autoGenerate").click();
-        document.getElementById("workspace").scrollIntoView({ behavior: "smooth" });
+      const startDemoBtn = document.getElementById("startDemo");
+      startDemoBtn.addEventListener("click", async () => {
+        await withLoading(startDemoBtn, async () => {
+          await document.getElementById("autoGenerate").click();
+          document.getElementById("workspace").scrollIntoView({ behavior: "smooth" });
+        }, "Préparation...");
       });
 
-      document.getElementById("downloadCsv").addEventListener("click", async () => {
+      const downloadCsvBtn = document.getElementById("downloadCsv");
+      downloadCsvBtn.addEventListener("click", async () => {
         if (docs.length === 0) {
           alert("Ajoute au moins une pièce pour exporter.");
           return;
         }
-        try {
-          const res = await fetch(`${API_BASE}/documents.csv`, {
-            headers: { "X-Auth-Token": token || "" },
-          });
-          if (!res.ok) throw new Error("API error");
-          const csv = await res.text();
-          const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-          const link = document.createElement("a");
-          link.href = URL.createObjectURL(blob);
-          link.download = "export-comptaflow.csv";
-          link.click();
-          URL.revokeObjectURL(link.href);
-          return;
-        } catch (err) {
-          const header = ["piece", "fournisseur", "date", "montant_ttc", "tva", "statut"];
-          const rows = docs.map((d) => [
-            d.name, d.vendor, d.date.toISOString().slice(0,10), d.amount, d.vat, d.status
-          ]);
-          const csv = [header, ...rows]
-            .map((r) => r.join(","))
-            .join("\n");
-          const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-          const link = document.createElement("a");
-          link.href = URL.createObjectURL(blob);
-          link.download = "export-comptaflow.csv";
-          link.click();
-          URL.revokeObjectURL(link.href);
-        }
+        await withLoading(downloadCsvBtn, async () => {
+          try {
+            const res = await fetch(`${API_BASE}/documents.csv`, {
+              headers: { "X-Auth-Token": token || "" },
+            });
+            if (!res.ok) throw new Error("API error");
+            const csv = await res.text();
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "export-comptaflow.csv";
+            link.click();
+            URL.revokeObjectURL(link.href);
+            return;
+          } catch (err) {
+            const header = ["piece", "fournisseur", "date", "montant_ttc", "tva", "statut"];
+            const rows = docs.map((d) => [
+              d.name, d.vendor, d.date.toISOString().slice(0,10), d.amount, d.vat, d.status
+            ]);
+            const csv = [header, ...rows]
+              .map((r) => r.join(","))
+              .join("\n");
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "export-comptaflow.csv";
+            link.click();
+            URL.revokeObjectURL(link.href);
+          }
+        }, "Export...");
       });
 
-      document.getElementById("downloadXlsx").addEventListener("click", async () => {
+      const downloadXlsxBtn = document.getElementById("downloadXlsx");
+      downloadXlsxBtn.addEventListener("click", async () => {
         if (docs.length === 0) {
           alert("Ajoute au moins une pièce pour exporter.");
           return;
         }
-        try {
-          const res = await fetch(`${API_BASE}/documents.xlsx`, {
-            headers: { "X-Auth-Token": token || "" },
-          });
-          if (!res.ok) throw new Error("API error");
-          const blob = await res.blob();
-          const link = document.createElement("a");
-          link.href = URL.createObjectURL(blob);
-          link.download = "export-comptaflow.xlsx";
-          link.click();
-          URL.revokeObjectURL(link.href);
-        } catch (err) {
-          alert("Export XLSX indisponible. Installe openpyxl côté serveur.");
-        }
+        await withLoading(downloadXlsxBtn, async () => {
+          try {
+            const res = await fetch(`${API_BASE}/documents.xlsx`, {
+              headers: { "X-Auth-Token": token || "" },
+            });
+            if (!res.ok) throw new Error("API error");
+            const blob = await res.blob();
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "export-comptaflow.xlsx";
+            link.click();
+            URL.revokeObjectURL(link.href);
+          } catch (err) {
+            alert("Export XLSX indisponible. Installe openpyxl côté serveur.");
+          }
+        }, "Export...");
       });
 
-      document.getElementById("downloadEntries").addEventListener("click", async () => {
+      const downloadEntriesBtn = document.getElementById("downloadEntries");
+      downloadEntriesBtn.addEventListener("click", async () => {
         if (docs.length === 0) {
           alert("Ajoute au moins une pièce pour exporter.");
           return;
         }
-        try {
-          const res = await fetch(`${API_BASE}/entries.xlsx`, {
-            headers: { "X-Auth-Token": token || "" },
-          });
-          if (!res.ok) throw new Error("API error");
-          const blob = await res.blob();
-          const link = document.createElement("a");
-          link.href = URL.createObjectURL(blob);
-          link.download = "export-ecritures.xlsx";
-          link.click();
-          URL.revokeObjectURL(link.href);
-        } catch (err) {
-          alert("Export écritures indisponible. Installe openpyxl côté serveur.");
-        }
+        await withLoading(downloadEntriesBtn, async () => {
+          try {
+            const res = await fetch(`${API_BASE}/entries.xlsx`, {
+              headers: { "X-Auth-Token": token || "" },
+            });
+            if (!res.ok) throw new Error("API error");
+            const blob = await res.blob();
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "export-ecritures.xlsx";
+            link.click();
+            URL.revokeObjectURL(link.href);
+          } catch (err) {
+            alert("Export écritures indisponible. Installe openpyxl côté serveur.");
+          }
+        }, "Export...");
       });
 
       async function loadFromApi() {
@@ -1306,158 +1407,191 @@
         loadFromApi();
       }
 
-      document.getElementById("addRule").addEventListener("click", async () => {
-        const keyword = document.getElementById("ruleKeyword").value.trim();
-        const code = document.getElementById("ruleCode").value.trim();
-        const label = document.getElementById("ruleLabel").value.trim();
-        if (!keyword || !code || !label) {
-          alert("Merci de remplir les 3 champs.");
-          return;
-        }
-        await fetch(`${API_BASE}/rules`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
-          body: JSON.stringify({ keyword, account_code: code, account_label: label }),
-        });
-        document.getElementById("ruleKeyword").value = "";
-        document.getElementById("ruleCode").value = "";
-        document.getElementById("ruleLabel").value = "";
-        loadFromApi();
+      const addRuleBtn = document.getElementById("addRule");
+      addRuleBtn.addEventListener("click", async () => {
+        await withLoading(addRuleBtn, async () => {
+          const keyword = document.getElementById("ruleKeyword").value.trim();
+          const code = document.getElementById("ruleCode").value.trim();
+          const label = document.getElementById("ruleLabel").value.trim();
+          if (!keyword || !code || !label) {
+            alert("Merci de remplir les 3 champs.");
+            return;
+          }
+          await fetch(`${API_BASE}/rules`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+            body: JSON.stringify({ keyword, account_code: code, account_label: label }),
+          });
+          document.getElementById("ruleKeyword").value = "";
+          document.getElementById("ruleCode").value = "";
+          document.getElementById("ruleLabel").value = "";
+          loadFromApi();
+        }, "Ajout...");
       });
 
       document.getElementById("bankUpload").addEventListener("change", async (e) => {
         const file = e.target.files[0];
         if (!file) return;
+        const input = e.target;
+        input.setAttribute("disabled", "disabled");
+        showToast("Import du relevé en cours...");
         const formData = new FormData();
         formData.append("file", file);
-        await fetch(`${API_BASE}/bank/import`, {
-          method: "POST",
-          headers: { "X-Auth-Token": token || "" },
-          body: formData,
-        });
-        e.target.value = "";
-        loadFromApi();
-      });
-
-      document.getElementById("addUser").addEventListener("click", async () => {
-        const email = document.getElementById("userEmail").value.trim();
-        const password = document.getElementById("userPassword").value.trim();
-        const role = document.getElementById("userRole").value;
-        if (!email || !password) {
-          alert("Merci de remplir email + mot de passe.");
-          return;
-        }
-        await fetch(`${API_BASE}/users`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
-          body: JSON.stringify({ email, password, role }),
-        });
-        document.getElementById("userEmail").value = "";
-        document.getElementById("userPassword").value = "";
-        loadFromApi();
-      });
-
-      document.getElementById("createTicket").addEventListener("click", async () => {
-        const subject = document.getElementById("ticketSubject").value.trim();
-        const message = document.getElementById("ticketMessage").value.trim();
-        if (!subject || !message) {
-          alert("Merci de remplir sujet et message.");
-          return;
-        }
-        await fetch(`${API_BASE}/support/tickets`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
-          body: JSON.stringify({ subject, message }),
-        });
-        document.getElementById("ticketSubject").value = "";
-        document.getElementById("ticketMessage").value = "";
-        loadFromApi();
-      });
-
-      document.getElementById("addKb").addEventListener("click", async () => {
-        const title = document.getElementById("kbTitle").value.trim();
-        const content = document.getElementById("kbContent").value.trim();
-        if (!title || !content) {
-          alert("Merci de remplir titre et contenu.");
-          return;
-        }
-        await fetch(`${API_BASE}/kb`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
-          body: JSON.stringify({ title, content }),
-        });
-        document.getElementById("kbTitle").value = "";
-        document.getElementById("kbContent").value = "";
-        loadFromApi();
-      });
-
-      document.getElementById("addNotif").addEventListener("click", async () => {
-        const message = document.getElementById("notifMessage").value.trim();
-        const level = document.getElementById("notifLevel").value;
-        if (!message) {
-          alert("Merci de saisir un message.");
-          return;
-        }
-        await fetch(`${API_BASE}/notifications`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
-          body: JSON.stringify({ message, level }),
-        });
-        document.getElementById("notifMessage").value = "";
-        loadFromApi();
-      });
-
-      document.getElementById("sendEmail").addEventListener("click", async () => {
-        const to = document.getElementById("emailTo").value.trim();
-        const subject = document.getElementById("emailSubject").value.trim();
-        const body = document.getElementById("emailBody").value.trim();
-        if (!to || !subject || !body) {
-          alert("Merci de remplir tous les champs.");
-          return;
-        }
-        await fetch(`${API_BASE}/emails`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
-          body: JSON.stringify({ to_email: to, subject, body }),
-        });
-        document.getElementById("emailTo").value = "";
-        document.getElementById("emailSubject").value = "";
-        document.getElementById("emailBody").value = "";
-        loadFromApi();
-      });
-
-      document.getElementById("wfMissing").addEventListener("click", async () => {
-        await fetch(`${API_BASE}/workflows/remind-missing`, {
-          method: "POST",
-          headers: { "X-Auth-Token": token || "" },
-        });
-        loadFromApi();
-      });
-
-      document.getElementById("wfMonthly").addEventListener("click", async () => {
-        await fetch(`${API_BASE}/workflows/monthly-reminder`, {
-          method: "POST",
-          headers: { "X-Auth-Token": token || "" },
-        });
-        loadFromApi();
-      });
-
-      billingTest.addEventListener("click", async () => {
         try {
-          const res = await fetch(`${API_BASE}/billing/test`, {
+          await fetch(`${API_BASE}/bank/import`, {
+            method: "POST",
+            headers: { "X-Auth-Token": token || "" },
+            body: formData,
+          });
+          loadFromApi();
+        } finally {
+          input.removeAttribute("disabled");
+          input.value = "";
+        }
+      });
+
+      const addUserBtn = document.getElementById("addUser");
+      addUserBtn.addEventListener("click", async () => {
+        await withLoading(addUserBtn, async () => {
+          const email = document.getElementById("userEmail").value.trim();
+          const password = document.getElementById("userPassword").value.trim();
+          const role = document.getElementById("userRole").value;
+          if (!email || !password) {
+            alert("Merci de remplir email + mot de passe.");
+            return;
+          }
+          await fetch(`${API_BASE}/users`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+            body: JSON.stringify({ email, password, role }),
+          });
+          document.getElementById("userEmail").value = "";
+          document.getElementById("userPassword").value = "";
+          loadFromApi();
+        }, "Ajout...");
+      });
+
+      const createTicketBtn = document.getElementById("createTicket");
+      createTicketBtn.addEventListener("click", async () => {
+        await withLoading(createTicketBtn, async () => {
+          const subject = document.getElementById("ticketSubject").value.trim();
+          const message = document.getElementById("ticketMessage").value.trim();
+          if (!subject || !message) {
+            alert("Merci de remplir sujet et message.");
+            return;
+          }
+          await fetch(`${API_BASE}/support/tickets`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+            body: JSON.stringify({ subject, message }),
+          });
+          document.getElementById("ticketSubject").value = "";
+          document.getElementById("ticketMessage").value = "";
+          loadFromApi();
+        }, "Envoi...");
+      });
+
+      const addKbBtn = document.getElementById("addKb");
+      addKbBtn.addEventListener("click", async () => {
+        await withLoading(addKbBtn, async () => {
+          const title = document.getElementById("kbTitle").value.trim();
+          const content = document.getElementById("kbContent").value.trim();
+          if (!title || !content) {
+            alert("Merci de remplir titre et contenu.");
+            return;
+          }
+          await fetch(`${API_BASE}/kb`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+            body: JSON.stringify({ title, content }),
+          });
+          document.getElementById("kbTitle").value = "";
+          document.getElementById("kbContent").value = "";
+          loadFromApi();
+        }, "Publication...");
+      });
+
+      const addNotifBtn = document.getElementById("addNotif");
+      addNotifBtn.addEventListener("click", async () => {
+        await withLoading(addNotifBtn, async () => {
+          const message = document.getElementById("notifMessage").value.trim();
+          const level = document.getElementById("notifLevel").value;
+          if (!message) {
+            alert("Merci de saisir un message.");
+            return;
+          }
+          await fetch(`${API_BASE}/notifications`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+            body: JSON.stringify({ message, level }),
+          });
+          document.getElementById("notifMessage").value = "";
+          loadFromApi();
+        }, "Publication...");
+      });
+
+      const sendEmailBtn = document.getElementById("sendEmail");
+      sendEmailBtn.addEventListener("click", async () => {
+        await withLoading(sendEmailBtn, async () => {
+          const to = document.getElementById("emailTo").value.trim();
+          const subject = document.getElementById("emailSubject").value.trim();
+          const body = document.getElementById("emailBody").value.trim();
+          if (!to || !subject || !body) {
+            alert("Merci de remplir tous les champs.");
+            return;
+          }
+          await fetch(`${API_BASE}/emails`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+            body: JSON.stringify({ to_email: to, subject, body }),
+          });
+          document.getElementById("emailTo").value = "";
+          document.getElementById("emailSubject").value = "";
+          document.getElementById("emailBody").value = "";
+          loadFromApi();
+        }, "Envoi...");
+      });
+
+      const wfMissingBtn = document.getElementById("wfMissing");
+      wfMissingBtn.addEventListener("click", async () => {
+        await withLoading(wfMissingBtn, async () => {
+          await fetch(`${API_BASE}/workflows/remind-missing`, {
             method: "POST",
             headers: { "X-Auth-Token": token || "" },
           });
-          if (!res.ok) throw new Error("billing");
-          const data = await res.json();
-          if (data.checkout_url) {
-            window.open(data.checkout_url, "_blank");
-          } else {
+          loadFromApi();
+        }, "Lancement...");
+      });
+
+      const wfMonthlyBtn = document.getElementById("wfMonthly");
+      wfMonthlyBtn.addEventListener("click", async () => {
+        await withLoading(wfMonthlyBtn, async () => {
+          await fetch(`${API_BASE}/workflows/monthly-reminder`, {
+            method: "POST",
+            headers: { "X-Auth-Token": token || "" },
+          });
+          loadFromApi();
+        }, "Lancement...");
+      });
+
+      billingTest.addEventListener("click", async () => {
+        await withLoading(billingTest, async () => {
+          try {
+            const res = await fetch(`${API_BASE}/billing/test`, {
+              method: "POST",
+              headers: { "X-Auth-Token": token || "" },
+            });
+            if (!res.ok) throw new Error("billing");
+            const data = await res.json();
+            if (data.checkout_url) {
+              window.open(data.checkout_url, "_blank");
+            } else {
+              alert("Test Stripe indisponible.");
+            }
+          } catch (err) {
             alert("Test Stripe indisponible.");
           }
-        } catch (err) {
-          alert("Test Stripe indisponible.");
-        }
+        }, "Test...");
       });
 
       checkHealth();
