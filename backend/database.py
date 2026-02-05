@@ -9,6 +9,9 @@ UPLOADS_DIR = BASE_DIR / "uploads"
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
+    conn.execute("PRAGMA journal_mode = WAL;")
+    conn.execute("PRAGMA busy_timeout = 5000;")
     return conn
 
 
@@ -174,5 +177,19 @@ def init_db():
         cur.execute("ALTER TABLE users ADD COLUMN password_salt TEXT")
     if not _column_exists(cur, "sessions", "expires_at"):
         cur.execute("ALTER TABLE sessions ADD COLUMN expires_at TEXT DEFAULT ''")
+
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_documents_tenant ON documents(tenant_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_documents_created ON documents(created_at)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_bank_tenant ON bank_transactions(tenant_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_bank_date ON bank_transactions(txn_date)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_rules_tenant ON account_rules(tenant_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_rules_keyword ON account_rules(keyword)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_tickets_tenant ON tickets(tenant_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_notifications_tenant ON notifications(tenant_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_email_tenant ON email_queue(tenant_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_subscriptions_tenant ON subscriptions(tenant_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_subscriptions_updated ON subscriptions(updated_at)")
     conn.commit()
     conn.close()

@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse
 from datetime import datetime, timedelta
 import csv
 import io
+import json
 from pathlib import Path
 import uuid
 import os
@@ -52,10 +53,11 @@ def _get_origins():
         return ["*"]
     return [o.strip() for o in raw.split(",") if o.strip()]
 
+_origins = _get_origins()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_get_origins(),
-    allow_credentials=True,
+    allow_origins=_origins,
+    allow_credentials=False if _origins == ["*"] else True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -69,6 +71,7 @@ _LOGIN_MAX_ATTEMPTS = 8
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     request_id = uuid.uuid4().hex
+    request.state.request_id = request_id
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
@@ -76,6 +79,24 @@ async def security_headers(request: Request, call_next):
     response.headers["Permissions-Policy"] = "geolocation=()"
     response.headers["X-Request-ID"] = request_id
     return response
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    request_id = getattr(request.state, "request_id", "unknown")
+    payload = {"detail": exc.detail, "request_id": request_id}
+    return Response(content=json.dumps(payload), status_code=exc.status_code, media_type="application/json")
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    request_id = getattr(request.state, "request_id", "unknown")
+    payload = {"detail": "Internal server error", "request_id": request_id}
+    return Response(content=json.dumps(payload), status_code=500, media_type="application/json")
+
+
+def _normalize_email(email: str) -> str:
+    return email.strip().lower()
 
 
 @app.get("/health")
@@ -182,6 +203,9 @@ def upload_document(file: UploadFile = File(...), x_auth_token: str | None = Hea
     user = require_user(x_auth_token)
     require_role(user, {"admin", "accountant", "client"})
     safe_name = file.filename.replace("/", "_").replace("\\", "_")
+    ext = safe_name.split(".")[-1].lower() if "." in safe_name else ""
+    if ext not in {"pdf", "jpg", "jpeg", "png"}:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
     max_mb = int(os.getenv("MAX_UPLOAD_MB", "10"))
     content = file.file.read()
     if len(content) > max_mb * 1024 * 1024:
@@ -346,12 +370,17 @@ def export_entries_xlsx(x_auth_token: str | None = Header(default=None)):
 def import_bank_csv(file: UploadFile = File(...), x_auth_token: str | None = Header(default=None)):
     user = require_user(x_auth_token)
     require_role(user, {"admin", "accountant"})
+    if not (file.filename or "").lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="File must be CSV")
+    max_rows = int(os.getenv("MAX_CSV_ROWS", "2000"))
     content = file.file.read().decode("utf-8", errors="ignore")
     reader = csv.DictReader(io.StringIO(content))
     rows = []
     conn = get_connection()
     cur = conn.cursor()
-    for r in reader:
+    for i, r in enumerate(reader):
+        if i >= max_rows:
+            break
         txn_date = (r.get("date") or r.get("Date") or "").strip()
         description = (r.get("description") or r.get("Libellé") or r.get("Label") or "").strip()
         amount_raw = (r.get("amount") or r.get("Montant") or r.get("Amount") or "0").replace(",", ".")
@@ -1040,7 +1069,8 @@ def clear_documents(x_auth_token: str | None = Header(default=None)):
 @app.post("/login", response_model=LoginOut)
 def login(payload: LoginIn, request: Request):
     ip = request.client.host if request.client else "unknown"
-    key = f"{payload.email}:{ip}"
+    email = _normalize_email(payload.email)
+    key = f"{email}:{ip}"
     now = datetime.utcnow()
     attempts = [t for t in _login_attempts[key] if (now - t).total_seconds() < _LOGIN_WINDOW_SEC]
     if len(attempts) >= _LOGIN_MAX_ATTEMPTS:
@@ -1049,7 +1079,7 @@ def login(payload: LoginIn, request: Request):
 
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM users WHERE email = ?", (payload.email,))
+    cur.execute("SELECT * FROM users WHERE email = ?", (email,))
     row = cur.fetchone()
     if not row:
         _login_attempts[key].append(now)
@@ -1060,11 +1090,13 @@ def login(payload: LoginIn, request: Request):
         conn.close()
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = uuid.uuid4().hex
-    expires_at = (datetime.utcnow() + timedelta(days=7)).isoformat()
+    ttl_hours = int(os.getenv("SESSION_TTL_HOURS", "12"))
+    expires_at = (datetime.utcnow() + timedelta(hours=ttl_hours)).isoformat()
     cur.execute(
         "INSERT INTO sessions (user_id, token, created_at, expires_at) VALUES (?, ?, ?, ?)",
         (row["id"], token, datetime.utcnow().isoformat(), expires_at),
     )
+    _login_attempts.pop(key, None)
     conn.commit()
     conn.close()
     return LoginOut(token=token)
@@ -1115,17 +1147,22 @@ def create_user(payload: UserCreate, x_auth_token: str | None = Header(default=N
     role = payload.role.lower()
     if role not in {"admin", "accountant", "client"}:
         raise HTTPException(status_code=400, detail="Invalid role")
+    email = _normalize_email(payload.email)
     conn = get_connection()
     cur = conn.cursor()
+    cur.execute("SELECT id FROM users WHERE email = ?", (email,))
+    if cur.fetchone():
+        conn.close()
+        raise HTTPException(status_code=400, detail="Email already used")
     salt = generate_salt()
     cur.execute(
         "INSERT INTO users (email, tenant_id, role, password_hash, password_salt, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-        (payload.email, user["tenant_id"], role, hash_password(payload.password, salt), salt, datetime.utcnow().isoformat()),
+        (email, user["tenant_id"], role, hash_password(payload.password, salt), salt, datetime.utcnow().isoformat()),
     )
     conn.commit()
     new_id = cur.lastrowid
     conn.close()
-    return UserOut(id=new_id, email=payload.email, role=role, created_at=datetime.utcnow().isoformat())
+    return UserOut(id=new_id, email=email, role=role, created_at=datetime.utcnow().isoformat())
 
 
 @app.delete("/users/{user_id}")

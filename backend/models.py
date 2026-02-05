@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from typing import List
 
 
@@ -22,8 +22,8 @@ class DocumentList(BaseModel):
 
 
 class LoginIn(BaseModel):
-    email: str = Field(..., min_length=3)
-    password: str = Field(..., min_length=4)
+    email: EmailStr
+    password: str = Field(..., min_length=4, max_length=128)
 
 
 class LoginOut(BaseModel):
@@ -32,15 +32,15 @@ class LoginOut(BaseModel):
 
 class UserOut(BaseModel):
     id: int
-    email: str
+    email: EmailStr
     role: str
     created_at: str
 
 
 class UserCreate(BaseModel):
-    email: str = Field(..., min_length=3)
-    password: str = Field(..., min_length=4)
-    role: str = Field(..., min_length=3)
+    email: EmailStr
+    password: str = Field(..., min_length=6, max_length=128)
+    role: str = Field(..., min_length=3, max_length=32)
 
 
 class EntryOut(BaseModel):
@@ -92,8 +92,8 @@ class SubscriptionOut(BaseModel):
 
 
 class TicketCreate(BaseModel):
-    subject: str = Field(..., min_length=3)
-    message: str = Field(..., min_length=5)
+    subject: str = Field(..., min_length=3, max_length=140)
+    message: str = Field(..., min_length=5, max_length=2000)
 
 
 class TicketOut(BaseModel):
@@ -106,8 +106,8 @@ class TicketOut(BaseModel):
 
 
 class KBCreate(BaseModel):
-    title: str = Field(..., min_length=3)
-    content: str = Field(..., min_length=5)
+    title: str = Field(..., min_length=3, max_length=140)
+    content: str = Field(..., min_length=5, max_length=4000)
 
 
 class KBOut(BaseModel):
@@ -118,8 +118,8 @@ class KBOut(BaseModel):
 
 
 class NotificationCreate(BaseModel):
-    message: str = Field(..., min_length=3)
-    level: str = Field(..., min_length=3)
+    message: str = Field(..., min_length=3, max_length=240)
+    level: str = Field(..., min_length=3, max_length=20)
 
 
 class NotificationOut(BaseModel):
@@ -130,9 +130,9 @@ class NotificationOut(BaseModel):
 
 
 class EmailCreate(BaseModel):
-    to_email: str = Field(..., min_length=3)
-    subject: str = Field(..., min_length=3)
-    body: str = Field(..., min_length=5)
+    to_email: EmailStr
+    subject: str = Field(..., min_length=3, max_length=140)
+    body: str = Field(..., min_length=5, max_length=4000)
 
 
 class EmailOut(BaseModel):
