@@ -619,6 +619,10 @@
           </div>
           <button class="btn btn-primary" id="addRule" style="width:max-content;">Ajouter</button>
         </div>
+        <div class="table-tools">
+          <input id="ruleSearch" placeholder="Rechercher mot-clé / compte / libellé..." />
+          <button class="filter-chip hidden" id="ruleFilterChip">Filtre actif</button>
+        </div>
         <div style="overflow:auto; margin-top: 12px;">
           <table id="ruleTable">
             <thead>
@@ -631,6 +635,23 @@
             </thead>
             <tbody></tbody>
           </table>
+        </div>
+        <div class="empty-state" id="ruleEmpty">
+          Aucun résultat pour cette recherche.
+        </div>
+        <div class="pager" id="rulePager">
+          <div id="rulePagerInfo">0 éléments</div>
+          <div class="pager-actions">
+            <label>Par page</label>
+            <select id="rulePageSize">
+              <option value="5">5</option>
+              <option value="8" selected>8</option>
+              <option value="12">12</option>
+              <option value="20">20</option>
+            </select>
+            <button class="btn btn-ghost" id="rulePrev">Précédent</button>
+            <button class="btn btn-ghost" id="ruleNext">Suivant</button>
+          </div>
         </div>
       </div>
     </section>
@@ -1042,6 +1063,17 @@
       const bankBody = document.querySelector("#bankTable tbody");
       const recoBody = document.querySelector("#recoTable tbody");
       const userBody = document.querySelector("#userTable tbody");
+      const ruleItems = [];
+      let rulePage = 1;
+      let rulePageSize = 8;
+      let ruleQuery = "";
+      const rulePagerInfo = document.getElementById("rulePagerInfo");
+      const rulePageSizeSelect = document.getElementById("rulePageSize");
+      const rulePrev = document.getElementById("rulePrev");
+      const ruleNext = document.getElementById("ruleNext");
+      const ruleSearch = document.getElementById("ruleSearch");
+      const ruleFilterChip = document.getElementById("ruleFilterChip");
+      const ruleEmpty = document.getElementById("ruleEmpty");
       let docPage = 1;
       let pageSize = 8;
       let docQuery = "";
@@ -1176,6 +1208,48 @@
         sumVat.textContent = fmt(totalVat);
       }
 
+      function renderRules() {
+        ruleBody.innerHTML = "";
+        const filtered = ruleQuery
+          ? ruleItems.filter((r) => {
+              const hay = `${r.keyword} ${r.account_code} ${r.account_label}`.toLowerCase();
+              return hay.includes(ruleQuery);
+            })
+          : ruleItems;
+        const total = filtered.length;
+        const totalPages = Math.max(1, Math.ceil(total / rulePageSize));
+        if (rulePage > totalPages) rulePage = totalPages;
+        const start = (rulePage - 1) * rulePageSize;
+        const slice = filtered.slice(start, start + rulePageSize);
+        if (ruleEmpty) ruleEmpty.classList.toggle("show", total === 0);
+        if (ruleFilterChip) {
+          ruleFilterChip.classList.toggle("hidden", !ruleQuery);
+          ruleFilterChip.textContent = ruleQuery ? `Filtre: ${ruleQuery} ✕` : "Filtre actif";
+        }
+        slice.forEach((r) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${r.keyword}</td>
+            <td>${r.account_code}</td>
+            <td>${r.account_label}</td>
+            <td><button class="btn btn-ghost" data-id="${r.id}">Supprimer</button></td>
+          `;
+          tr.querySelector("button").addEventListener("click", async () => {
+            await fetch(`${API_BASE}/rules/${r.id}`, {
+              method: "DELETE",
+              headers: { "X-Auth-Token": token || "" },
+            });
+            loadFromApi();
+          });
+          ruleBody.appendChild(tr);
+        });
+        if (rulePagerInfo) {
+          rulePagerInfo.textContent = `${total} éléments · page ${rulePage}/${totalPages}`;
+        }
+        if (rulePrev) rulePrev.setAttribute("disabled", rulePage === 1 ? "disabled" : "");
+        if (ruleNext) ruleNext.setAttribute("disabled", rulePage === totalPages ? "disabled" : "");
+      }
+
       if (docPageSize) {
         docPageSize.addEventListener("change", (e) => {
           pageSize = parseInt(e.target.value, 10) || 8;
@@ -1211,6 +1285,41 @@
           if (docSearch) docSearch.value = "";
           docPage = 1;
           render();
+        });
+      }
+
+      if (rulePageSizeSelect) {
+        rulePageSizeSelect.addEventListener("change", (e) => {
+          rulePageSize = parseInt(e.target.value, 10) || 8;
+          rulePage = 1;
+          renderRules();
+        });
+      }
+      if (ruleSearch) {
+        ruleSearch.addEventListener("input", (e) => {
+          ruleQuery = (e.target.value || "").trim().toLowerCase();
+          rulePage = 1;
+          renderRules();
+        });
+      }
+      if (rulePrev) {
+        rulePrev.addEventListener("click", () => {
+          rulePage = Math.max(1, rulePage - 1);
+          renderRules();
+        });
+      }
+      if (ruleNext) {
+        ruleNext.addEventListener("click", () => {
+          rulePage += 1;
+          renderRules();
+        });
+      }
+      if (ruleFilterChip) {
+        ruleFilterChip.addEventListener("click", () => {
+          ruleQuery = "";
+          if (ruleSearch) ruleSearch.value = "";
+          rulePage = 1;
+          renderRules();
         });
       }
       if (docPrev) {
@@ -1430,24 +1539,9 @@
             headers: { "X-Auth-Token": token || "" },
           }).then((r) => r.json());
           nextCache.rules = rules;
-          ruleBody.innerHTML = "";
-          rules.forEach((r) => {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-              <td>${r.keyword}</td>
-              <td>${r.account_code}</td>
-              <td>${r.account_label}</td>
-              <td><button class="btn btn-ghost" data-id="${r.id}">Supprimer</button></td>
-            `;
-            tr.querySelector("button").addEventListener("click", async () => {
-              await fetch(`${API_BASE}/rules/${r.id}`, {
-                method: "DELETE",
-                headers: { "X-Auth-Token": token || "" },
-              });
-              loadFromApi();
-            });
-            ruleBody.appendChild(tr);
-          });
+          ruleItems.length = 0;
+          rules.forEach((r) => ruleItems.push(r));
+          renderRules();
 
           const bank = await fetch(`${API_BASE}/bank`, {
             headers: { "X-Auth-Token": token || "" },
@@ -1754,17 +1848,9 @@
             });
           }
           if (cached.rules) {
-            ruleBody.innerHTML = "";
-            cached.rules.forEach((r) => {
-              const tr = document.createElement("tr");
-              tr.innerHTML = `
-                <td>${r.keyword}</td>
-                <td>${r.account_code}</td>
-                <td>${r.account_label}</td>
-                <td><button class="btn btn-ghost" data-id="${r.id}">Supprimer</button></td>
-              `;
-              ruleBody.appendChild(tr);
-            });
+            ruleItems.length = 0;
+            cached.rules.forEach((r) => ruleItems.push(r));
+            renderRules();
           }
           if (cached.bank) {
             bankBody.innerHTML = "";
