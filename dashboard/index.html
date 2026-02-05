@@ -778,6 +778,7 @@
       const statusPill = document.getElementById("apiStatus");
       const toast = document.getElementById("globalToast");
       const apiBanner = document.getElementById("apiBanner");
+      const CACHE_KEY = "cf_dashboard_cache_v1";
 
       const showToast = (message) => {
         if (!toast) return;
@@ -792,6 +793,18 @@
         statusPill.classList.remove("ok", "warn");
         if (state) statusPill.classList.add(state);
         statusPill.lastChild.textContent = label;
+      };
+
+      const loadCache = () => {
+        try {
+          return JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
+        } catch (err) {
+          return {};
+        }
+      };
+
+      const saveCache = (data) => {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
       };
 
       const setApiLock = (locked) => {
@@ -1050,9 +1063,12 @@
 
       async function loadFromApi() {
         try {
+          const cache = loadCache();
+          const nextCache = { ...(cache.data || {}) };
           const me = await fetch(`${API_BASE}/me`, {
             headers: { "X-Auth-Token": token || "" },
           }).then((r) => r.json());
+          nextCache.me = me;
           userRoleTag.style.marginLeft = "12px";
           userRoleTag.style.padding = "4px 8px";
           userRoleTag.style.borderRadius = "999px";
@@ -1083,6 +1099,7 @@
           });
           if (!res.ok) throw new Error("API error");
           const data = await res.json();
+          nextCache.documents = data.items || [];
           docs.length = 0;
           data.items.forEach((item) => {
             docs.push({
@@ -1098,12 +1115,14 @@
           const stats = await fetch(`${API_BASE}/stats`, {
             headers: { "X-Auth-Token": token || "" },
           }).then((r) => r.json());
+          nextCache.stats = stats;
           countDocs.textContent = stats.count;
           sumVat.textContent = fmt(stats.vat_sum || 0);
 
           const entries = await fetch(`${API_BASE}/entries`, {
             headers: { "X-Auth-Token": token || "" },
           }).then((r) => r.json());
+          nextCache.entries = entries;
           entryBody.innerHTML = "";
           entries.slice(0, 30).forEach((e) => {
             const tr = document.createElement("tr");
@@ -1122,6 +1141,7 @@
           const rules = await fetch(`${API_BASE}/rules`, {
             headers: { "X-Auth-Token": token || "" },
           }).then((r) => r.json());
+          nextCache.rules = rules;
           ruleBody.innerHTML = "";
           rules.forEach((r) => {
             const tr = document.createElement("tr");
@@ -1144,6 +1164,7 @@
           const bank = await fetch(`${API_BASE}/bank`, {
             headers: { "X-Auth-Token": token || "" },
           }).then((r) => r.json());
+          nextCache.bank = bank;
           bankBody.innerHTML = "";
           bank.slice(0, 20).forEach((b) => {
             const tr = document.createElement("tr");
@@ -1158,6 +1179,7 @@
           const recos = await fetch(`${API_BASE}/reconciliations`, {
             headers: { "X-Auth-Token": token || "" },
           }).then((r) => r.json());
+          nextCache.recos = recos;
           recoBody.innerHTML = "";
           recos.slice(0, 20).forEach((m) => {
             const tr = document.createElement("tr");
@@ -1173,6 +1195,7 @@
             const users = await fetch(`${API_BASE}/users`, {
               headers: { "X-Auth-Token": token || "" },
             }).then((r) => r.json());
+            nextCache.users = users;
             userBody.innerHTML = "";
             users.forEach((u) => {
               const tr = document.createElement("tr");
@@ -1194,6 +1217,8 @@
 
             const plans = await fetch(`${API_BASE}/billing/plans`).then((r) => r.json());
             const cfg = await fetch(`${API_BASE}/billing/config`).then((r) => r.json());
+            nextCache.plans = plans;
+            nextCache.billing_config = cfg;
             if (!cfg.ok) {
               billingError.style.display = "block";
               billingError.textContent = `Stripe incomplet. Manque: ${cfg.missing.join(", ")}`;
@@ -1205,6 +1230,7 @@
             const status = await fetch(`${API_BASE}/billing/status`, {
               headers: { "X-Auth-Token": token || "" },
             }).then((r) => r.json());
+            nextCache.billing_status = status;
             billingStatus.textContent = `Statut abonnement: ${status.status} · Plan: ${status.plan_id}`;
             const metrics = await fetch(`${API_BASE}/billing/metrics`, {
               headers: { "X-Auth-Token": token || "" },
@@ -1212,6 +1238,8 @@
             const analytics = await fetch(`${API_BASE}/billing/analytics`, {
               headers: { "X-Auth-Token": token || "" },
             }).then((r) => r.json());
+            nextCache.billing_metrics = metrics;
+            nextCache.billing_analytics = analytics;
             billingMetrics.innerHTML = `
               <div class="card">
                 <h3>Abonnements actifs</h3>
@@ -1275,6 +1303,7 @@
             const inv = await fetch(`${API_BASE}/billing/invoices`, {
               headers: { "X-Auth-Token": token || "" },
             }).then((r) => r.json());
+            nextCache.invoices = inv;
             invoiceBody.innerHTML = "";
             (inv.invoices || []).forEach((i) => {
               const tr = document.createElement("tr");
@@ -1295,6 +1324,7 @@
           const tickets = await fetch(`${API_BASE}/support/tickets`, {
             headers: { "X-Auth-Token": token || "" },
           }).then((r) => r.json());
+          nextCache.tickets = tickets;
           ticketBody.innerHTML = "";
           tickets.forEach((t) => {
             const tr = document.createElement("tr");
@@ -1325,6 +1355,7 @@
           const kb = await fetch(`${API_BASE}/kb`, {
             headers: { "X-Auth-Token": token || "" },
           }).then((r) => r.json());
+          nextCache.kb = kb;
           kbBody.innerHTML = "";
           kb.forEach((k) => {
             const tr = document.createElement("tr");
@@ -1346,6 +1377,7 @@
           const notifs = await fetch(`${API_BASE}/notifications`, {
             headers: { "X-Auth-Token": token || "" },
           }).then((r) => r.json());
+          nextCache.notifs = notifs;
           notifBody.innerHTML = "";
           notifs.forEach((n) => {
             const tr = document.createElement("tr");
@@ -1369,6 +1401,7 @@
             const emails = await fetch(`${API_BASE}/emails`, {
               headers: { "X-Auth-Token": token || "" },
             }).then((r) => r.json());
+            nextCache.emails = emails;
             emailBody.innerHTML = "";
             emails.forEach((e) => {
               const tr = document.createElement("tr");
@@ -1381,8 +1414,92 @@
               emailBody.appendChild(tr);
             });
           }
+          saveCache(nextCache);
         } catch (err) {
+          const cache = loadCache();
+          const cached = cache.data || {};
+          if (cached.me) {
+            userRoleTag.style.marginLeft = "12px";
+            userRoleTag.style.padding = "4px 8px";
+            userRoleTag.style.borderRadius = "999px";
+            userRoleTag.style.fontSize = "12px";
+            userRoleTag.style.background = "#ecfeff";
+            userRoleTag.style.color = "#0e7490";
+            userRoleTag.textContent = `${cached.me.tenant || "Cabinet"} · ${cached.me.role || "role"}`;
+            headerLogo.appendChild(userRoleTag);
+          }
+          if (cached.documents) {
+            docs.length = 0;
+            cached.documents.forEach((item) => {
+              docs.push({
+                name: item.filename,
+                vendor: item.vendor,
+                date: new Date(item.doc_date),
+                amount: item.amount_ttc,
+                vat: item.vat,
+                status: item.status,
+              });
+            });
+          }
           render();
+          if (cached.stats) {
+            countDocs.textContent = cached.stats.count || 0;
+            sumVat.textContent = fmt(cached.stats.vat_sum || 0);
+          }
+          if (cached.entries) {
+            entryBody.innerHTML = "";
+            cached.entries.slice(0, 30).forEach((e) => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>${e.date}</td>
+                <td>${e.journal}</td>
+                <td>${e.account}</td>
+                <td>${e.label}</td>
+                <td>${fmt(e.debit)}</td>
+                <td>${fmt(e.credit)}</td>
+                <td>${e.doc}</td>
+              `;
+              entryBody.appendChild(tr);
+            });
+          }
+          if (cached.rules) {
+            ruleBody.innerHTML = "";
+            cached.rules.forEach((r) => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>${r.keyword}</td>
+                <td>${r.account_code}</td>
+                <td>${r.account_label}</td>
+                <td><button class="btn btn-ghost" data-id="${r.id}">Supprimer</button></td>
+              `;
+              ruleBody.appendChild(tr);
+            });
+          }
+          if (cached.bank) {
+            bankBody.innerHTML = "";
+            cached.bank.slice(0, 20).forEach((b) => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>${b.txn_date}</td>
+                <td>${b.description}</td>
+                <td>${fmt(b.amount)}</td>
+              `;
+              bankBody.appendChild(tr);
+            });
+          }
+          if (cached.recos) {
+            recoBody.innerHTML = "";
+            cached.recos.slice(0, 20).forEach((m) => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>#${m.document_id}</td>
+                <td>#${m.bank_txn_id}</td>
+                <td>${m.match_score}</td>
+              `;
+              recoBody.appendChild(tr);
+            });
+          }
+          showToast("Mode cache activé. Données hors-ligne.");
         }
       }
 
