@@ -99,6 +99,26 @@
         color: var(--muted);
       }
 
+      .sync-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        font-size: 12px;
+        color: #0e7490;
+        background: #ecfeff;
+        opacity: 0;
+        transform: translateY(-4px);
+        transition: all 0.2s ease;
+      }
+
+      .sync-pill.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
       .toast {
         position: fixed;
         bottom: 20px;
@@ -347,6 +367,7 @@
         API: vérification...
       </div>
       <div class="status-meta" id="syncMeta">Dernière sync: --</div>
+      <div class="sync-pill" id="syncPill">Synchronisation...</div>
       <nav>
         <a href="#features">Fonctions</a>
         <a href="#workspace">Démo</a>
@@ -790,6 +811,8 @@
       let retryDelay = 5000;
       let retryTimer = null;
       const syncMeta = document.getElementById("syncMeta");
+      const syncPill = document.getElementById("syncPill");
+      let isLoading = false;
 
       const showToast = (message) => {
         if (!toast) return;
@@ -841,6 +864,11 @@
       const updateSyncMeta = () => {
         if (!syncMeta) return;
         syncMeta.textContent = `Dernière sync: ${syncAgeLabel()}`;
+      };
+
+      const setSyncing = (value) => {
+        if (!syncPill) return;
+        syncPill.classList.toggle("show", value);
       };
 
       const updateBanner = () => {
@@ -1111,6 +1139,9 @@
       });
 
       async function loadFromApi() {
+        if (isLoading) return;
+        isLoading = true;
+        setSyncing(true);
         try {
           const cache = loadCache();
           const nextCache = { ...(cache.data || {}) };
@@ -1679,6 +1710,8 @@
             }, retryDelay);
           }
         }
+        setSyncing(false);
+        isLoading = false;
       }
 
       const loginLink = document.getElementById("loginLink");
