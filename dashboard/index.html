@@ -779,6 +779,7 @@
       const toast = document.getElementById("globalToast");
       const apiBanner = document.getElementById("apiBanner");
       const CACHE_KEY = "cf_dashboard_cache_v1";
+      let lastCacheTs = null;
 
       const showToast = (message) => {
         if (!toast) return;
@@ -797,19 +798,40 @@
 
       const loadCache = () => {
         try {
-          return JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
+          const parsed = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
+          lastCacheTs = parsed.ts || null;
+          return parsed;
         } catch (err) {
           return {};
         }
       };
 
       const saveCache = (data) => {
-        localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+        const ts = Date.now();
+        lastCacheTs = ts;
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ ts, data }));
+      };
+
+      const cacheAgeLabel = () => {
+        if (!lastCacheTs) return "n/a";
+        const delta = Math.max(0, Math.floor((Date.now() - lastCacheTs) / 1000));
+        if (delta < 60) return `${delta}s`;
+        if (delta < 3600) return `${Math.floor(delta / 60)}min`;
+        return `${Math.floor(delta / 3600)}h`;
+      };
+
+      const updateBanner = () => {
+        if (!apiBanner) return;
+        const age = cacheAgeLabel();
+        apiBanner.innerHTML = `API indisponible. Mode cache activé · ${age}`;
       };
 
       const setApiLock = (locked) => {
         document.body.classList.toggle("api-locked", locked);
-        if (apiBanner) apiBanner.classList.toggle("show", locked);
+        if (apiBanner) {
+          apiBanner.classList.toggle("show", locked);
+          if (locked) updateBanner();
+        }
         document
           .querySelectorAll(".api-actions button, .api-actions input, .api-actions select, .api-actions textarea")
           .forEach((el) => {
@@ -853,6 +875,10 @@
       window.addEventListener("unhandledrejection", () =>
         showToast("Une action a échoué. Réessayez dans un instant.")
       );
+      window.addEventListener("online", () => {
+        checkHealth();
+        loadFromApi();
+      });
       const docs = [];
       const tbody = document.querySelector("#docTable tbody");
       const entryBody = document.querySelector("#entryTable tbody");
@@ -1497,6 +1523,120 @@
                 <td>${m.match_score}</td>
               `;
               recoBody.appendChild(tr);
+            });
+          }
+          if (cached.users) {
+            userBody.innerHTML = "";
+            cached.users.forEach((u) => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>${u.email}</td>
+                <td>${u.role}</td>
+                <td>${u.created_at.slice(0, 10)}</td>
+                <td><button class="btn btn-ghost" data-id="${u.id}">Supprimer</button></td>
+              `;
+              userBody.appendChild(tr);
+            });
+          }
+          if (cached.billing_status) {
+            billingStatus.textContent = `Statut abonnement: ${cached.billing_status.status} · Plan: ${cached.billing_status.plan_id}`;
+          }
+          if (cached.billing_metrics && cached.billing_analytics) {
+            const metrics = cached.billing_metrics;
+            const analytics = cached.billing_analytics;
+            billingMetrics.innerHTML = `
+              <div class="card">
+                <h3>Abonnements actifs</h3>
+                <p>${metrics.active_subscriptions}</p>
+              </div>
+              <div class="card">
+                <h3>Statuts</h3>
+                <p>${Object.entries(metrics.status_breakdown || {})
+                  .map(([k, v]) => `${k}: ${v}`)
+                  .join(" · ") || "aucun"}</p>
+              </div>
+              <div class="card">
+                <h3>MRR</h3>
+                <p>${analytics.mrr}€</p>
+              </div>
+              <div class="card">
+                <h3>ARPA</h3>
+                <p>${analytics.arpa}€</p>
+              </div>
+              <div class="card">
+                <h3>Churn</h3>
+                <p>${analytics.churn}%</p>
+              </div>
+            `;
+          }
+          if (cached.invoices) {
+            invoiceBody.innerHTML = "";
+            (cached.invoices.invoices || []).forEach((i) => {
+              const tr = document.createElement("tr");
+              const created = i.created ? new Date(i.created * 1000).toLocaleDateString("fr-FR") : "-";
+              const amount = `${(i.amount_due || 0).toLocaleString("fr-FR")} ${i.currency || "eur"}`;
+              const link = i.hosted_invoice_url || i.invoice_pdf || "#";
+              tr.innerHTML = `
+                <td>${i.id}</td>
+                <td>${i.status}</td>
+                <td>${amount}</td>
+                <td>${created}</td>
+                <td><a href="${link}" target="_blank">Voir</a></td>
+              `;
+              invoiceBody.appendChild(tr);
+            });
+          }
+          if (cached.tickets) {
+            ticketBody.innerHTML = "";
+            cached.tickets.forEach((t) => {
+              const tr = document.createElement("tr");
+              const created = t.created_at.slice(0, 10);
+              tr.innerHTML = `
+                <td>${t.user_email}</td>
+                <td>${t.subject}</td>
+                <td>${t.status}</td>
+                <td>${created}</td>
+                <td><button class="btn btn-ghost" data-id="${t.id}">Clore</button></td>
+              `;
+              ticketBody.appendChild(tr);
+            });
+          }
+          if (cached.kb) {
+            kbBody.innerHTML = "";
+            cached.kb.forEach((k) => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>${k.title}</td>
+                <td>${k.created_at.slice(0, 10)}</td>
+                <td><button class="btn btn-ghost" data-id="${k.id}">Supprimer</button></td>
+              `;
+              kbBody.appendChild(tr);
+            });
+          }
+          if (cached.notifs) {
+            notifBody.innerHTML = "";
+            cached.notifs.forEach((n) => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>${n.message}</td>
+                <td>${n.level}</td>
+                <td>${n.created_at.slice(0, 10)}</td>
+                <td><button class="btn btn-ghost" data-id="${n.id}">Supprimer</button></td>
+              `;
+              notifBody.appendChild(tr);
+            });
+          }
+          if (cached.emails) {
+            emailBody.innerHTML = "";
+            cached.emails.forEach((e) => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>${e.to_email}</td>
+                <td>${e.subject}</td>
+                <td>${e.status}</td>
+                <td>${e.created_at.slice(0, 10)}</td>
+              `;
+              emailBody.appendChild(tr);
             });
           }
           showToast("Mode cache activé. Données hors-ligne.");
