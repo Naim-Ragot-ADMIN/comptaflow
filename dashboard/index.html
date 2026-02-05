@@ -320,6 +320,23 @@
         min-width: 220px;
       }
 
+      .filter-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #fef3c7;
+        color: #92400e;
+        font-size: 12px;
+        border: 1px solid #fde68a;
+        cursor: pointer;
+      }
+
+      .filter-chip.hidden {
+        display: none;
+      }
+
       .empty-state {
         display: none;
         margin-top: 16px;
@@ -506,6 +523,7 @@
         </div>
         <div class="table-tools">
           <input id="docSearch" placeholder="Rechercher pièce, fournisseur, statut..." />
+          <button class="filter-chip hidden" id="docFilterChip">Filtre actif</button>
         </div>
         <div style="overflow:auto; margin-top: 18px;">
           <table id="docTable">
@@ -1018,6 +1036,7 @@
       const docNext = document.getElementById("docNext");
       const docSearch = document.getElementById("docSearch");
       const docEmpty = document.getElementById("docEmpty");
+      const docFilterChip = document.getElementById("docFilterChip");
       const planCards = document.getElementById("planCards");
       const billingStatus = document.getElementById("billingStatus");
       const billingMetrics = document.getElementById("billingMetrics");
@@ -1096,6 +1115,10 @@
         if (docEmpty) {
           docEmpty.classList.toggle("show", total === 0);
         }
+        if (docFilterChip) {
+          docFilterChip.classList.toggle("hidden", !docQuery);
+          docFilterChip.textContent = docQuery ? `Filtre: ${docQuery} ✕` : "Filtre actif";
+        }
         slice.forEach((doc) => {
           const tr = document.createElement("tr");
           tr.innerHTML = `
@@ -1132,6 +1155,14 @@
       if (docSearch) {
         docSearch.addEventListener("input", (e) => {
           docQuery = (e.target.value || "").trim().toLowerCase();
+          docPage = 1;
+          render();
+        });
+      }
+      if (docFilterChip) {
+        docFilterChip.addEventListener("click", () => {
+          docQuery = "";
+          if (docSearch) docSearch.value = "";
           docPage = 1;
           render();
         });
