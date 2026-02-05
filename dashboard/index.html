@@ -669,6 +669,10 @@
           <input type="file" id="bankUpload" />
           <small style="color:var(--muted);">Colonnes attendues: date, description, amount.</small>
         </div>
+        <div class="table-tools">
+          <input id="bankSearch" placeholder="Rechercher date / description / montant..." />
+          <button class="filter-chip hidden" id="bankFilterChip">Filtre actif</button>
+        </div>
         <div style="overflow:auto; margin-top: 12px;">
           <table id="bankTable">
             <thead>
@@ -692,6 +696,23 @@
             </thead>
             <tbody></tbody>
           </table>
+        </div>
+        <div class="empty-state" id="bankEmpty">
+          Aucun résultat pour cette recherche.
+        </div>
+        <div class="pager" id="bankPager">
+          <div id="bankPagerInfo">0 éléments</div>
+          <div class="pager-actions">
+            <label>Par page</label>
+            <select id="bankPageSize">
+              <option value="5">5</option>
+              <option value="8" selected>8</option>
+              <option value="12">12</option>
+              <option value="20">20</option>
+            </select>
+            <button class="btn btn-ghost" id="bankPrev">Précédent</button>
+            <button class="btn btn-ghost" id="bankNext">Suivant</button>
+          </div>
         </div>
       </div>
     </section>
@@ -1074,6 +1095,17 @@
       const ruleSearch = document.getElementById("ruleSearch");
       const ruleFilterChip = document.getElementById("ruleFilterChip");
       const ruleEmpty = document.getElementById("ruleEmpty");
+      const bankItems = [];
+      let bankPage = 1;
+      let bankPageSize = 8;
+      let bankQuery = "";
+      const bankPagerInfo = document.getElementById("bankPagerInfo");
+      const bankPageSizeSelect = document.getElementById("bankPageSize");
+      const bankPrev = document.getElementById("bankPrev");
+      const bankNext = document.getElementById("bankNext");
+      const bankSearch = document.getElementById("bankSearch");
+      const bankFilterChip = document.getElementById("bankFilterChip");
+      const bankEmpty = document.getElementById("bankEmpty");
       let docPage = 1;
       let pageSize = 8;
       let docQuery = "";
@@ -1250,6 +1282,40 @@
         if (ruleNext) ruleNext.setAttribute("disabled", rulePage === totalPages ? "disabled" : "");
       }
 
+      function renderBank() {
+        bankBody.innerHTML = "";
+        const filtered = bankQuery
+          ? bankItems.filter((b) => {
+              const hay = `${b.txn_date} ${b.description} ${b.amount}`.toLowerCase();
+              return hay.includes(bankQuery);
+            })
+          : bankItems;
+        const total = filtered.length;
+        const totalPages = Math.max(1, Math.ceil(total / bankPageSize));
+        if (bankPage > totalPages) bankPage = totalPages;
+        const start = (bankPage - 1) * bankPageSize;
+        const slice = filtered.slice(start, start + bankPageSize);
+        if (bankEmpty) bankEmpty.classList.toggle("show", total === 0);
+        if (bankFilterChip) {
+          bankFilterChip.classList.toggle("hidden", !bankQuery);
+          bankFilterChip.textContent = bankQuery ? `Filtre: ${bankQuery} ✕` : "Filtre actif";
+        }
+        slice.forEach((b) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${b.txn_date}</td>
+            <td>${b.description}</td>
+            <td>${fmt(b.amount)}</td>
+          `;
+          bankBody.appendChild(tr);
+        });
+        if (bankPagerInfo) {
+          bankPagerInfo.textContent = `${total} éléments · page ${bankPage}/${totalPages}`;
+        }
+        if (bankPrev) bankPrev.setAttribute("disabled", bankPage === 1 ? "disabled" : "");
+        if (bankNext) bankNext.setAttribute("disabled", bankPage === totalPages ? "disabled" : "");
+      }
+
       if (docPageSize) {
         docPageSize.addEventListener("change", (e) => {
           pageSize = parseInt(e.target.value, 10) || 8;
@@ -1320,6 +1386,41 @@
           if (ruleSearch) ruleSearch.value = "";
           rulePage = 1;
           renderRules();
+        });
+      }
+
+      if (bankPageSizeSelect) {
+        bankPageSizeSelect.addEventListener("change", (e) => {
+          bankPageSize = parseInt(e.target.value, 10) || 8;
+          bankPage = 1;
+          renderBank();
+        });
+      }
+      if (bankSearch) {
+        bankSearch.addEventListener("input", (e) => {
+          bankQuery = (e.target.value || "").trim().toLowerCase();
+          bankPage = 1;
+          renderBank();
+        });
+      }
+      if (bankPrev) {
+        bankPrev.addEventListener("click", () => {
+          bankPage = Math.max(1, bankPage - 1);
+          renderBank();
+        });
+      }
+      if (bankNext) {
+        bankNext.addEventListener("click", () => {
+          bankPage += 1;
+          renderBank();
+        });
+      }
+      if (bankFilterChip) {
+        bankFilterChip.addEventListener("click", () => {
+          bankQuery = "";
+          if (bankSearch) bankSearch.value = "";
+          bankPage = 1;
+          renderBank();
         });
       }
       if (docPrev) {
@@ -1547,16 +1648,9 @@
             headers: { "X-Auth-Token": token || "" },
           }).then((r) => r.json());
           nextCache.bank = bank;
-          bankBody.innerHTML = "";
-          bank.slice(0, 20).forEach((b) => {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-              <td>${b.txn_date}</td>
-              <td>${b.description}</td>
-              <td>${fmt(b.amount)}</td>
-            `;
-            bankBody.appendChild(tr);
-          });
+          bankItems.length = 0;
+          bank.forEach((b) => bankItems.push(b));
+          renderBank();
 
           const recos = await fetch(`${API_BASE}/reconciliations`, {
             headers: { "X-Auth-Token": token || "" },
@@ -1853,16 +1947,9 @@
             renderRules();
           }
           if (cached.bank) {
-            bankBody.innerHTML = "";
-            cached.bank.slice(0, 20).forEach((b) => {
-              const tr = document.createElement("tr");
-              tr.innerHTML = `
-                <td>${b.txn_date}</td>
-                <td>${b.description}</td>
-                <td>${fmt(b.amount)}</td>
-              `;
-              bankBody.appendChild(tr);
-            });
+            bankItems.length = 0;
+            cached.bank.forEach((b) => bankItems.push(b));
+            renderBank();
           }
           if (cached.recos) {
             recoBody.innerHTML = "";
