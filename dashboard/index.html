@@ -306,6 +306,20 @@
         background: white;
       }
 
+      .table-tools {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .table-tools input {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 10px;
+        min-width: 220px;
+      }
+
       .workspace {
         margin-top: 10px;
         background: var(--paper);
@@ -474,6 +488,9 @@
           <small style="color:var(--muted);">
             Les données sont simulées pour la démo. Aucun fichier n'est envoyé.
           </small>
+        </div>
+        <div class="table-tools">
+          <input id="docSearch" placeholder="Rechercher pièce, fournisseur, statut..." />
         </div>
         <div style="overflow:auto; margin-top: 18px;">
           <table id="docTable">
@@ -976,10 +993,12 @@
       const userBody = document.querySelector("#userTable tbody");
       let docPage = 1;
       let pageSize = 8;
+      let docQuery = "";
       const docPagerInfo = document.getElementById("docPagerInfo");
       const docPageSize = document.getElementById("docPageSize");
       const docPrev = document.getElementById("docPrev");
       const docNext = document.getElementById("docNext");
+      const docSearch = document.getElementById("docSearch");
       const planCards = document.getElementById("planCards");
       const billingStatus = document.getElementById("billingStatus");
       const billingMetrics = document.getElementById("billingMetrics");
@@ -1044,11 +1063,17 @@
 
       function render() {
         tbody.innerHTML = "";
-        const total = docs.length;
+        const filtered = docQuery
+          ? docs.filter((d) => {
+              const hay = `${d.name} ${d.vendor} ${d.status}`.toLowerCase();
+              return hay.includes(docQuery);
+            })
+          : docs;
+        const total = filtered.length;
         const totalPages = Math.max(1, Math.ceil(total / pageSize));
         if (docPage > totalPages) docPage = totalPages;
         const start = (docPage - 1) * pageSize;
-        const slice = docs.slice(start, start + pageSize);
+        const slice = filtered.slice(start, start + pageSize);
         slice.forEach((doc) => {
           const tr = document.createElement("tr");
           tr.innerHTML = `
@@ -1078,6 +1103,13 @@
       if (docPageSize) {
         docPageSize.addEventListener("change", (e) => {
           pageSize = parseInt(e.target.value, 10) || 8;
+          docPage = 1;
+          render();
+        });
+      }
+      if (docSearch) {
+        docSearch.addEventListener("input", (e) => {
+          docQuery = (e.target.value || "").trim().toLowerCase();
           docPage = 1;
           render();
         });
