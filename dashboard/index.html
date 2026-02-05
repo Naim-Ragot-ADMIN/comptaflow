@@ -320,6 +320,21 @@
         min-width: 220px;
       }
 
+      .empty-state {
+        display: none;
+        margin-top: 16px;
+        padding: 16px;
+        border-radius: 14px;
+        border: 1px dashed var(--line);
+        color: var(--muted);
+        background: #f8fafc;
+        font-size: 13px;
+      }
+
+      .empty-state.show {
+        display: block;
+      }
+
       .workspace {
         margin-top: 10px;
         background: var(--paper);
@@ -506,6 +521,9 @@
             </thead>
             <tbody></tbody>
           </table>
+        </div>
+        <div class="empty-state" id="docEmpty">
+          Aucun résultat pour cette recherche.
         </div>
         <div class="pager" id="docPager">
           <div id="docPagerInfo">0 éléments</div>
@@ -999,6 +1017,7 @@
       const docPrev = document.getElementById("docPrev");
       const docNext = document.getElementById("docNext");
       const docSearch = document.getElementById("docSearch");
+      const docEmpty = document.getElementById("docEmpty");
       const planCards = document.getElementById("planCards");
       const billingStatus = document.getElementById("billingStatus");
       const billingMetrics = document.getElementById("billingMetrics");
@@ -1074,6 +1093,9 @@
         if (docPage > totalPages) docPage = totalPages;
         const start = (docPage - 1) * pageSize;
         const slice = filtered.slice(start, start + pageSize);
+        if (docEmpty) {
+          docEmpty.classList.toggle("show", total === 0);
+        }
         slice.forEach((doc) => {
           const tr = document.createElement("tr");
           tr.innerHTML = `
