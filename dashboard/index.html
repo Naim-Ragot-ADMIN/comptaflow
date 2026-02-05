@@ -809,6 +809,10 @@
           <textarea id="ticketMessage" rows="3" placeholder="Décris ton besoin..."></textarea>
           <button class="btn btn-primary" id="createTicket" style="width:max-content;">Envoyer</button>
         </div>
+        <div class="table-tools">
+          <input id="ticketSearch" placeholder="Rechercher client / sujet / statut..." />
+          <button class="filter-chip hidden" id="ticketFilterChip">Filtre actif</button>
+        </div>
         <div style="overflow:auto; margin-top: 12px;">
           <table id="ticketTable">
             <thead>
@@ -822,6 +826,23 @@
             </thead>
             <tbody></tbody>
           </table>
+        </div>
+        <div class="empty-state" id="ticketEmpty">
+          Aucun résultat pour cette recherche.
+        </div>
+        <div class="pager" id="ticketPager">
+          <div id="ticketPagerInfo">0 éléments</div>
+          <div class="pager-actions">
+            <label>Par page</label>
+            <select id="ticketPageSize">
+              <option value="5">5</option>
+              <option value="8" selected>8</option>
+              <option value="12">12</option>
+              <option value="20">20</option>
+            </select>
+            <button class="btn btn-ghost" id="ticketPrev">Précédent</button>
+            <button class="btn btn-ghost" id="ticketNext">Suivant</button>
+          </div>
         </div>
       </div>
     </section>
@@ -1106,6 +1127,17 @@
       const bankSearch = document.getElementById("bankSearch");
       const bankFilterChip = document.getElementById("bankFilterChip");
       const bankEmpty = document.getElementById("bankEmpty");
+      const ticketItems = [];
+      let ticketPage = 1;
+      let ticketPageSize = 8;
+      let ticketQuery = "";
+      const ticketPagerInfo = document.getElementById("ticketPagerInfo");
+      const ticketPageSizeSelect = document.getElementById("ticketPageSize");
+      const ticketPrev = document.getElementById("ticketPrev");
+      const ticketNext = document.getElementById("ticketNext");
+      const ticketSearch = document.getElementById("ticketSearch");
+      const ticketFilterChip = document.getElementById("ticketFilterChip");
+      const ticketEmpty = document.getElementById("ticketEmpty");
       let docPage = 1;
       let pageSize = 8;
       let docQuery = "";
@@ -1316,6 +1348,56 @@
         if (bankNext) bankNext.setAttribute("disabled", bankPage === totalPages ? "disabled" : "");
       }
 
+      function renderTickets() {
+        ticketBody.innerHTML = "";
+        const filtered = ticketQuery
+          ? ticketItems.filter((t) => {
+              const hay = `${t.user_email} ${t.subject} ${t.status}`.toLowerCase();
+              return hay.includes(ticketQuery);
+            })
+          : ticketItems;
+        const total = filtered.length;
+        const totalPages = Math.max(1, Math.ceil(total / ticketPageSize));
+        if (ticketPage > totalPages) ticketPage = totalPages;
+        const start = (ticketPage - 1) * ticketPageSize;
+        const slice = filtered.slice(start, start + ticketPageSize);
+        if (ticketEmpty) ticketEmpty.classList.toggle("show", total === 0);
+        if (ticketFilterChip) {
+          ticketFilterChip.classList.toggle("hidden", !ticketQuery);
+          ticketFilterChip.textContent = ticketQuery ? `Filtre: ${ticketQuery} ✕` : "Filtre actif";
+        }
+        slice.forEach((t) => {
+          const tr = document.createElement("tr");
+          const created = t.created_at.slice(0, 10);
+          const action = (t.role === "admin" || t.role === "accountant") && t.status !== "closed"
+            ? `<button class="btn btn-ghost" data-id="${t.id}">Clore</button>`
+            : "";
+          tr.innerHTML = `
+            <td>${t.user_email}</td>
+            <td>${t.subject}</td>
+            <td>${t.status}</td>
+            <td>${created}</td>
+            <td>${action}</td>
+          `;
+          const btn = tr.querySelector("button");
+          if (btn) {
+            btn.addEventListener("click", async () => {
+              await fetch(`${API_BASE}/support/tickets/${t.id}/close`, {
+                method: "POST",
+                headers: { "X-Auth-Token": token || "" },
+              });
+              loadFromApi();
+            });
+          }
+          ticketBody.appendChild(tr);
+        });
+        if (ticketPagerInfo) {
+          ticketPagerInfo.textContent = `${total} éléments · page ${ticketPage}/${totalPages}`;
+        }
+        if (ticketPrev) ticketPrev.setAttribute("disabled", ticketPage === 1 ? "disabled" : "");
+        if (ticketNext) ticketNext.setAttribute("disabled", ticketPage === totalPages ? "disabled" : "");
+      }
+
       if (docPageSize) {
         docPageSize.addEventListener("change", (e) => {
           pageSize = parseInt(e.target.value, 10) || 8;
@@ -1421,6 +1503,41 @@
           if (bankSearch) bankSearch.value = "";
           bankPage = 1;
           renderBank();
+        });
+      }
+
+      if (ticketPageSizeSelect) {
+        ticketPageSizeSelect.addEventListener("change", (e) => {
+          ticketPageSize = parseInt(e.target.value, 10) || 8;
+          ticketPage = 1;
+          renderTickets();
+        });
+      }
+      if (ticketSearch) {
+        ticketSearch.addEventListener("input", (e) => {
+          ticketQuery = (e.target.value || "").trim().toLowerCase();
+          ticketPage = 1;
+          renderTickets();
+        });
+      }
+      if (ticketPrev) {
+        ticketPrev.addEventListener("click", () => {
+          ticketPage = Math.max(1, ticketPage - 1);
+          renderTickets();
+        });
+      }
+      if (ticketNext) {
+        ticketNext.addEventListener("click", () => {
+          ticketPage += 1;
+          renderTickets();
+        });
+      }
+      if (ticketFilterChip) {
+        ticketFilterChip.addEventListener("click", () => {
+          ticketQuery = "";
+          if (ticketSearch) ticketSearch.value = "";
+          ticketPage = 1;
+          renderTickets();
         });
       }
       if (docPrev) {
@@ -1801,32 +1918,9 @@
             headers: { "X-Auth-Token": token || "" },
           }).then((r) => r.json());
           nextCache.tickets = tickets;
-          ticketBody.innerHTML = "";
-          tickets.forEach((t) => {
-            const tr = document.createElement("tr");
-            const created = t.created_at.slice(0, 10);
-            const action = (me.role === "admin" || me.role === "accountant") && t.status !== "closed"
-              ? `<button class="btn btn-ghost" data-id="${t.id}">Clore</button>`
-              : "";
-            tr.innerHTML = `
-              <td>${t.user_email}</td>
-              <td>${t.subject}</td>
-              <td>${t.status}</td>
-              <td>${created}</td>
-              <td>${action}</td>
-            `;
-            const btn = tr.querySelector("button");
-            if (btn) {
-              btn.addEventListener("click", async () => {
-                await fetch(`${API_BASE}/support/tickets/${t.id}/close`, {
-                  method: "POST",
-                  headers: { "X-Auth-Token": token || "" },
-                });
-                loadFromApi();
-              });
-            }
-            ticketBody.appendChild(tr);
-          });
+          ticketItems.length = 0;
+          tickets.forEach((t) => ticketItems.push(t));
+          renderTickets();
 
           const kb = await fetch(`${API_BASE}/kb`, {
             headers: { "X-Auth-Token": token || "" },
@@ -2025,19 +2119,9 @@
             });
           }
           if (cached.tickets) {
-            ticketBody.innerHTML = "";
-            cached.tickets.forEach((t) => {
-              const tr = document.createElement("tr");
-              const created = t.created_at.slice(0, 10);
-              tr.innerHTML = `
-                <td>${t.user_email}</td>
-                <td>${t.subject}</td>
-                <td>${t.status}</td>
-                <td>${created}</td>
-                <td><button class="btn btn-ghost" data-id="${t.id}">Clore</button></td>
-              `;
-              ticketBody.appendChild(tr);
-            });
+            ticketItems.length = 0;
+            cached.tickets.forEach((t) => ticketItems.push(t));
+            renderTickets();
           }
           if (cached.kb) {
             kbBody.innerHTML = "";
