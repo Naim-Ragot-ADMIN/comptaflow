@@ -306,6 +306,21 @@
         background: white;
       }
 
+      .table-sort th {
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .table-sort th.active {
+        color: var(--brand);
+      }
+
+      .table-sort th .sort-indicator {
+        margin-left: 6px;
+        font-size: 11px;
+        color: #94a3b8;
+      }
+
       .table-tools {
         display: flex;
         align-items: center;
@@ -526,15 +541,15 @@
           <button class="filter-chip hidden" id="docFilterChip">Filtre actif</button>
         </div>
         <div style="overflow:auto; margin-top: 18px;">
-          <table id="docTable">
+          <table id="docTable" class="table-sort">
             <thead>
               <tr>
-                <th>Pièce</th>
-                <th>Fournisseur</th>
-                <th>Date</th>
-                <th>Montant TTC</th>
-                <th>TVA</th>
-                <th>Statut</th>
+                <th data-sort="name">Pièce <span class="sort-indicator">↕</span></th>
+                <th data-sort="vendor">Fournisseur <span class="sort-indicator">↕</span></th>
+                <th data-sort="date">Date <span class="sort-indicator">↕</span></th>
+                <th data-sort="amount">Montant TTC <span class="sort-indicator">↕</span></th>
+                <th data-sort="vat">TVA <span class="sort-indicator">↕</span></th>
+                <th data-sort="status">Statut <span class="sort-indicator">↕</span></th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -1030,6 +1045,8 @@
       let docPage = 1;
       let pageSize = 8;
       let docQuery = "";
+      let sortKey = "date";
+      let sortDir = "desc";
       const docPagerInfo = document.getElementById("docPagerInfo");
       const docPageSize = document.getElementById("docPageSize");
       const docPrev = document.getElementById("docPrev");
@@ -1037,6 +1054,7 @@
       const docSearch = document.getElementById("docSearch");
       const docEmpty = document.getElementById("docEmpty");
       const docFilterChip = document.getElementById("docFilterChip");
+      const docHeaders = document.querySelectorAll("#docTable th[data-sort]");
       const planCards = document.getElementById("planCards");
       const billingStatus = document.getElementById("billingStatus");
       const billingMetrics = document.getElementById("billingMetrics");
@@ -1107,11 +1125,24 @@
               return hay.includes(docQuery);
             })
           : docs;
-        const total = filtered.length;
+        const sorted = [...filtered].sort((a, b) => {
+          const getVal = (item) => {
+            if (sortKey === "date") return item.date?.getTime?.() || 0;
+            if (sortKey === "amount") return item.amount || 0;
+            if (sortKey === "vat") return item.vat || 0;
+            return `${item[sortKey] || ""}`.toLowerCase();
+          };
+          const va = getVal(a);
+          const vb = getVal(b);
+          if (va < vb) return sortDir === "asc" ? -1 : 1;
+          if (va > vb) return sortDir === "asc" ? 1 : -1;
+          return 0;
+        });
+        const total = sorted.length;
         const totalPages = Math.max(1, Math.ceil(total / pageSize));
         if (docPage > totalPages) docPage = totalPages;
         const start = (docPage - 1) * pageSize;
-        const slice = filtered.slice(start, start + pageSize);
+        const slice = sorted.slice(start, start + pageSize);
         if (docEmpty) {
           docEmpty.classList.toggle("show", total === 0);
         }
@@ -1159,6 +1190,21 @@
           render();
         });
       }
+      docHeaders.forEach((th) => {
+        th.addEventListener("click", () => {
+          const key = th.getAttribute("data-sort");
+          if (!key) return;
+          if (sortKey === key) {
+            sortDir = sortDir === "asc" ? "desc" : "asc";
+          } else {
+            sortKey = key;
+            sortDir = "asc";
+          }
+          docHeaders.forEach((h) => h.classList.remove("active"));
+          th.classList.add("active");
+          render();
+        });
+      });
       if (docFilterChip) {
         docFilterChip.addEventListener("click", () => {
           docQuery = "";
