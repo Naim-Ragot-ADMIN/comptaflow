@@ -283,6 +283,29 @@
         font-size: 14px;
       }
 
+      .pager {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 10px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .pager-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .pager select {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 6px 10px;
+        background: white;
+      }
+
       .workspace {
         margin-top: 10px;
         background: var(--paper);
@@ -466,6 +489,20 @@
             </thead>
             <tbody></tbody>
           </table>
+        </div>
+        <div class="pager" id="docPager">
+          <div id="docPagerInfo">0 éléments</div>
+          <div class="pager-actions">
+            <label>Par page</label>
+            <select id="docPageSize">
+              <option value="5">5</option>
+              <option value="8" selected>8</option>
+              <option value="12">12</option>
+              <option value="20">20</option>
+            </select>
+            <button class="btn btn-ghost" id="docPrev">Précédent</button>
+            <button class="btn btn-ghost" id="docNext">Suivant</button>
+          </div>
         </div>
       </div>
     </section>
@@ -937,6 +974,12 @@
       const bankBody = document.querySelector("#bankTable tbody");
       const recoBody = document.querySelector("#recoTable tbody");
       const userBody = document.querySelector("#userTable tbody");
+      let docPage = 1;
+      let pageSize = 8;
+      const docPagerInfo = document.getElementById("docPagerInfo");
+      const docPageSize = document.getElementById("docPageSize");
+      const docPrev = document.getElementById("docPrev");
+      const docNext = document.getElementById("docNext");
       const planCards = document.getElementById("planCards");
       const billingStatus = document.getElementById("billingStatus");
       const billingMetrics = document.getElementById("billingMetrics");
@@ -1001,7 +1044,12 @@
 
       function render() {
         tbody.innerHTML = "";
-        docs.forEach((doc) => {
+        const total = docs.length;
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        if (docPage > totalPages) docPage = totalPages;
+        const start = (docPage - 1) * pageSize;
+        const slice = docs.slice(start, start + pageSize);
+        slice.forEach((doc) => {
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td>${doc.name}</td>
@@ -1017,6 +1065,11 @@
           `;
           tbody.appendChild(tr);
         });
+        if (docPagerInfo) {
+          docPagerInfo.textContent = `${total} éléments · page ${docPage}/${totalPages}`;
+        }
+        if (docPrev) docPrev.setAttribute("disabled", docPage === 1 ? "disabled" : "");
+        if (docNext) docNext.setAttribute("disabled", docPage === totalPages ? "disabled" : "");
         countDocs.textContent = docs.length;
         const totalVat = docs.reduce((acc, d) => acc + d.vat, 0);
         sumVat.textContent = fmt(totalVat);
