@@ -94,6 +94,11 @@
         box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.18);
       }
 
+      .status-meta {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
       .toast {
         position: fixed;
         bottom: 20px;
@@ -341,6 +346,7 @@
         <span class="status-dot"></span>
         API: vérification...
       </div>
+      <div class="status-meta" id="syncMeta">Dernière sync: --</div>
       <nav>
         <a href="#features">Fonctions</a>
         <a href="#workspace">Démo</a>
@@ -780,6 +786,10 @@
       const apiBanner = document.getElementById("apiBanner");
       const CACHE_KEY = "cf_dashboard_cache_v1";
       let lastCacheTs = null;
+      let lastSyncTs = null;
+      let retryDelay = 5000;
+      let retryTimer = null;
+      const syncMeta = document.getElementById("syncMeta");
 
       const showToast = (message) => {
         if (!toast) return;
@@ -818,6 +828,19 @@
         if (delta < 60) return `${delta}s`;
         if (delta < 3600) return `${Math.floor(delta / 60)}min`;
         return `${Math.floor(delta / 3600)}h`;
+      };
+
+      const syncAgeLabel = () => {
+        if (!lastSyncTs) return "--";
+        const delta = Math.max(0, Math.floor((Date.now() - lastSyncTs) / 1000));
+        if (delta < 60) return `${delta}s`;
+        if (delta < 3600) return `${Math.floor(delta / 60)}min`;
+        return `${Math.floor(delta / 3600)}h`;
+      };
+
+      const updateSyncMeta = () => {
+        if (!syncMeta) return;
+        syncMeta.textContent = `Dernière sync: ${syncAgeLabel()}`;
       };
 
       const updateBanner = () => {
@@ -1091,6 +1114,10 @@
         try {
           const cache = loadCache();
           const nextCache = { ...(cache.data || {}) };
+          if (retryTimer) {
+            clearTimeout(retryTimer);
+            retryTimer = null;
+          }
           const me = await fetch(`${API_BASE}/me`, {
             headers: { "X-Auth-Token": token || "" },
           }).then((r) => r.json());
@@ -1441,6 +1468,9 @@
             });
           }
           saveCache(nextCache);
+          lastSyncTs = Date.now();
+          updateSyncMeta();
+          retryDelay = 5000;
         } catch (err) {
           const cache = loadCache();
           const cached = cache.data || {};
@@ -1640,6 +1670,14 @@
             });
           }
           showToast("Mode cache activé. Données hors-ligne.");
+          updateSyncMeta();
+          if (!retryTimer) {
+            retryTimer = setTimeout(() => {
+              retryTimer = null;
+              retryDelay = Math.min(retryDelay * 2, 300000);
+              loadFromApi();
+            }, retryDelay);
+          }
         }
       }
 
