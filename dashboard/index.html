@@ -1075,6 +1075,26 @@
         sumVat.textContent = fmt(totalVat);
       }
 
+      if (docPageSize) {
+        docPageSize.addEventListener("change", (e) => {
+          pageSize = parseInt(e.target.value, 10) || 8;
+          docPage = 1;
+          render();
+        });
+      }
+      if (docPrev) {
+        docPrev.addEventListener("click", () => {
+          docPage = Math.max(1, docPage - 1);
+          render();
+        });
+      }
+      if (docNext) {
+        docNext.addEventListener("click", () => {
+          docPage += 1;
+          render();
+        });
+      }
+
       document.getElementById("upload").addEventListener("change", async (e) => {
         const input = e.target;
         const files = [...input.files];
